@@ -10,31 +10,55 @@
 #define SCREENXRES 640
 #define SCREENYRES 480
 #define SCREEN_Z 512
+
 #define CUBESIZE 196
 #define CUBEHALF CUBESIZE / 2
+#define FLOORSIZE 512
+#define FLOORHALF FLOORSIZE / 2
 
+#define ANALOGUE_MID 127
+#define ANALOGUE_DEADZONE 24
+#define ANALOGUE_MINPOS ANALOGUE_MID + ANALOGUE_DEADZONE
+#define ANALOGUE_MINNEG ANALOGUE_MID - ANALOGUE_DEADZONE
+
+// Holds Position, Rotation and Transform for an "object". Probably could use a better name.
 typedef struct GameObject {
-    SVECTOR rotation;
     VECTOR position;
+    SVECTOR rotation;
     MATRIX transform;
-    void* polyPtr;
-    ushort polyLength;
 } GameObject;
 
-// Draw buffer struct
+// Same as GameObject, except uses a VECTOR for rotation instead of SVECTOR
+typedef struct CameraObject {
+    VECTOR position;
+    VECTOR rotation;
+    MATRIX transform;
+} CameraObject;
+
+// Extends GameObject and can also hold all the data needed to draw a polygon
+typedef struct PolyObject {
+    GameObject obj;
+    MATRIX renderTransform;
+    u_char polySides;
+    ushort polyLength;
+    void* polyPtr;
+    SVECTOR* verticesPtr;
+    int* indicesPtr;
+} PolyObject;
+
+// (Double) Buffer struct
 typedef struct DB {
     DRAWENV draw;
     DISPENV disp;
     u_long ot[OTSIZE];
-    POLY_F4 s[6];
-    POLY_F4 floor;
 } DB;
 
 typedef struct Vector2UB {
-    u_char x;
-    u_char y;
+    u_char x; // Left = neg, Right = pos
+    u_char y; // Up = neg, Down = pos
 } Vector2UB;
 
+// Holds the pad data stream from the engine (dataBuffer), and divides it into the other, more readable members
 typedef struct GamePad {
     u_char dataBuffer[34];
     u_char status;
@@ -44,6 +68,7 @@ typedef struct GamePad {
     Vector2UB rightstick;
 } GamePad;
 
+// Splits the dataBuffer into the other members for readability and ease of use
 void UpdatePad(GamePad* pad) {
     pad->status = pad->dataBuffer[0];
     pad->type = pad->dataBuffer[1];
@@ -54,50 +79,60 @@ void UpdatePad(GamePad* pad) {
     pad->rightstick.y = pad->dataBuffer[5];
 }
 
-static SVECTOR cube_vertices[] = {
+static SVECTOR cubeVertices[] = {
     { -CUBEHALF, -CUBEHALF, -CUBEHALF, 0 }, { CUBEHALF , -CUBEHALF, -CUBEHALF, 0 },
     { CUBEHALF , CUBEHALF , -CUBEHALF, 0 }, { -CUBEHALF, CUBEHALF , -CUBEHALF, 0 },
     { -CUBEHALF, -CUBEHALF, CUBEHALF , 0 }, { CUBEHALF , -CUBEHALF, CUBEHALF , 0 },
-    { CUBEHALF , CUBEHALF , CUBEHALF , 0 }, { -CUBEHALF, CUBEHALF , CUBEHALF , 0 },
+    { CUBEHALF , CUBEHALF , CUBEHALF , 0 }, { -CUBEHALF, CUBEHALF , CUBEHALF , 0 }
 };
 
-static int cube_indices[] = {
+static int cubeIndices[] = {
     0, 1, 2, 3, 
     1, 5, 6, 2, 
     5, 4, 7, 6, 
     4, 0, 3, 7, 
     4, 5, 1, 0, 
-    6, 7, 3, 2,
+    6, 7, 3, 2
 };
 
 static SVECTOR floorVertices[] = {
-    { -CUBESIZE * 2, 0, -CUBESIZE * 2, 0 }, { CUBESIZE * 2 , 0, -CUBESIZE * 2, 0 },
-    { CUBESIZE * 2 , 0, CUBESIZE * 2 , 0 }, { -CUBESIZE * 2, 0, CUBESIZE * 2 , 0 },
+    { -FLOORHALF, 0, -FLOORHALF, 0 }, {  FLOORHALF, 0, -FLOORHALF, 0 },
+    {  FLOORHALF, 0,  FLOORHALF, 0 }, { -FLOORHALF, 0,  FLOORHALF, 0 }
 };
 
-static void init_cube(DB *db, CVECTOR *col) {
-    size_t i;
+static int floorIndices[] = {
+    0, 1, 2, 3
+};
 
-    for (i = 0; i < ARRAY_SIZE(db->s); ++i) {
-        SetPolyF4(&db->s[i]);
-        setRGB0(&db->s[i], col[i].r, col[i].g, col[i].b);
+static void initCube(POLY_F4* cube, CVECTOR* col) {
+    for (size_t i = 0; i < 6; ++i) {
+        SetPolyF4(&cube[i]);
+        setRGB0(&cube[i], col[i].r, col[i].g, col[i].b);
     }
 }
 
-static void add_cube(u_long *ot, POLY_F4 *s, MATRIX *transform) {
+static void initFloor(POLY_F4* floor, CVECTOR* col) {
+    SetPolyF4(floor);
+    setRGB0(floor, col->r, col->g, col->b);
+}
+
+static void DrawPolyFQuad(u_long* ot, PolyObject* pobj) {
     long p, otz, flg;
     int nclip;
 
     PushMatrix();
 
-    SetRotMatrix(transform);
-    SetTransMatrix(transform);
+    SetRotMatrix(&pobj->renderTransform);
+    SetTransMatrix(&pobj->renderTransform);
 
-    for (size_t i = 0; i < ARRAY_SIZE(cube_indices); i += 4, ++s) {
+    POLY_F4* poly = (POLY_F4*)pobj->polyPtr;
+
+    for (size_t i = 0; i < (pobj->polyLength * pobj->polySides); i += 4, ++poly) {
+        // Non-Average version (RotNclip4) presents layering issues, at least tested on floor against Average cube
         nclip = RotAverageNclip4(
-            &cube_vertices[cube_indices[i + 0]], &cube_vertices[cube_indices[i + 1]],
-            &cube_vertices[cube_indices[i + 2]], &cube_vertices[cube_indices[i + 3]],
-            (long*)&s->x0, (long*)&s->x1, (long*)&s->x3, (long*)&s->x2, &p, &otz, &flg
+            &pobj->verticesPtr[pobj->indicesPtr[i + 0]], &pobj->verticesPtr[pobj->indicesPtr[i + 1]],
+            &pobj->verticesPtr[pobj->indicesPtr[i + 2]], &pobj->verticesPtr[pobj->indicesPtr[i + 3]],
+            (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x3, (long*)&poly->x2, &p, &otz, &flg
         );
 
         if (nclip <= 0) {
@@ -105,36 +140,8 @@ static void add_cube(u_long *ot, POLY_F4 *s, MATRIX *transform) {
         }
 
         if ((otz > 0) && (otz < OTSIZE)) {
-            AddPrim(&ot[otz], s);
+            AddPrim(&ot[otz], poly);
         }
-    }
-
-    PopMatrix();
-}
-
-static void initFloor(DB* db, CVECTOR* col) {
-    SetPolyF4(&db->floor);
-    setRGB0(&db->floor, col->r, col->g, col->b);
-}
-
-static void drawFloor(u_long* ot, POLY_F4* s, MATRIX* transform) {
-    long p, otz, flg;
-    int nclip;
-
-    PushMatrix();
-
-    SetRotMatrix(transform);
-    SetTransMatrix(transform);
-
-    nclip = RotAverageNclip4(
-        &floorVertices[0], &floorVertices[1],
-        &floorVertices[2], &floorVertices[3],
-        (long*)&s->x0, (long*)&s->x1, (long*)&s->x3, (long*)&s->x2, &p, &otz, &flg
-    );
-
-    // nclip <= 0 && 
-    if ((otz > 0) && (otz < OTSIZE)) {
-        AddPrim(&ot[otz], s);
     }
 
     PopMatrix();
@@ -156,42 +163,52 @@ int main(void) {
 
     GamePad pad0 = { 0 };
     GamePad pad1 = { 0 };
-    
-    SVECTOR rotation = { 0 };
-    VECTOR translation = { 0, 0, (SCREEN_Z * 3) / 2, 0 };
-    MATRIX transform;
+
+    CameraObject camera = {
+        .position = { 0, ONE * -100, ONE * -100, 0 },
+        .rotation = { 0 }
+    };
+
+    POLY_F4 pcube[6];
+    PolyObject cube = { 
+        .obj = {
+            .position = { 0, 0, (SCREEN_Z * 3) / 2, 0 },
+            .rotation = { 0 }
+        },
+        .polyLength = 6,
+        .polySides = 4,
+        .verticesPtr = cubeVertices,
+        .indicesPtr = cubeIndices,
+        .polyPtr = &pcube
+    };
     CVECTOR col[6];
 
-    VECTOR camRot = { 0 };
-    VECTOR camPos = { 0, ONE*-200, 0, 0 };
-    MATRIX camTransform;
+    POLY_F4 pfloor;
+    PolyObject floor = { 
+        .obj = {
+            .position = { 0, 160, (SCREEN_Z * 3) / 2, 0 },
+            .rotation = { ONE / 2, 0, 0, 0 }
+        },
+        .polyLength = 1,
+        .polySides = 4,
+        .verticesPtr = floorVertices,
+        .indicesPtr = floorIndices,
+        .polyPtr = &pfloor
+    };
+    CVECTOR floorColour = { .r = 0, .g = 128, .b = 0 };
 
-    SVECTOR tempRot = { 0 };
-    VECTOR tempPos = { 0 };
+    // Non-fixed-point values for calculating camera position and rotation.
+    // Rotation still works with 4096 (ONE) = 360 degrees
+    VECTOR rPos = { 0 };
+    SVECTOR rRot = { 0 };
 
-    MATRIX cubeRenderTransform;
-
-    CVECTOR floorColour;
-    floorColour.r = 0;
-    floorColour.g = 128;
-    floorColour.b = 0;
-
-    SVECTOR floorRot = { ONE / 2, 0, 0, 0 };
-    VECTOR floorPos = { 0, 160, (SCREEN_Z * 3) / 2, 0 };
-    MATRIX floorTransform;
-
-    MATRIX floorRenderTransform;
-
-    ushort lastInput = 0;
+    //ushort lastInput = 0;
     
     int PadStatus;
     int TPressed = 0;
     int AutoRotate = 1;
 
-    // Initialises the controller. Should always take 0. Used for standard analogue controllers only, otherwise look up PadInitDirect()
-    // Note: Use InitPAD from the Kernel library instead, as below
-    //PadInit(0);
-
+    // Initialises the controllers with the Kernel library function
     InitPAD(pad0.dataBuffer, 34, pad1.dataBuffer, 34);
     StartPAD();
 
@@ -203,11 +220,11 @@ int main(void) {
 
     // Set graphics debugging level
     // 0 = No checking (fastest)
-    // 1 = Checks verteces and drawn primitives
+    // 1 = Checks vertices and drawn primitives
     // 2 = Same as above but dumps them instead
     SetGraphDebug(0);
 
-    // Init debug text
+    // Initialises and allows use of debug text
     FntLoad(960, 256);
     SetDumpFnt(FntOpen(32, 32, 320, 96, 0, 512));
 
@@ -228,15 +245,12 @@ int main(void) {
         col[i].b = rand();
     }
 
-    // Init cube for both draw buffers
-    init_cube(&db[0], col);
-    init_cube(&db[1], col);
+    // Init cube and floor
+    initCube((POLY_F4*)cube.polyPtr, col);
+    initFloor((POLY_F4*)floor.polyPtr, &floorColour);
 
-    initFloor(&db[0], &floorColour);
-    initFloor(&db[1], &floorColour);
-
-    RotMatrix(&floorRot, &floorTransform);
-    TransMatrix(&floorTransform, &floorPos);
+    RotMatrix(&floor.obj.rotation, &floor.obj.transform);
+    TransMatrix(&floor.obj.transform, &floor.obj.position);
 
     // Actually display the things on screen
     SetDispMask(1);
@@ -244,37 +258,38 @@ int main(void) {
     PutDrawEnv(&db[0].draw);
     PutDispEnv(&db[0].disp);
 
+    // Wait for VBLANK to allow controller to initialise (otherwise it starts off with pad->buttons being FFFF for the first frame)
     VSync(0);
 
     while (1) {
-        // Flip used draw buffer
+        // Swap used buffer
         cdb = (cdb == &db[0]) ? &db[1] : &db[0];
 
-        tempRot.vx = camRot.vx >> 12;
-        tempRot.vy = camRot.vy >> 12;
-        tempRot.vz = camRot.vz >> 12;
+        rRot.vx = camera.rotation.vx >> 12;
+        rRot.vy = camera.rotation.vy >> 12;
+        rRot.vz = camera.rotation.vz >> 12;
 
+        // Translate pad data buffer into a readable format
         UpdatePad(&pad0);
 
-        //if (pad0.status == 0 && pad0.buttons != 0xFFFF) {
         if (pad0.status == 0) {
             if (AutoRotate == 0) {
-                if (pad0.buttons & PADL1)      translation.vz -= 4;
-                if (pad0.buttons & PADR1)      translation.vz += 4;
-                if (pad0.buttons & PADL2)      rotation.vz -= 8;
-                if (pad0.buttons & PADR2)      rotation.vz += 8;
-                if (pad0.buttons & PADLup)     rotation.vx -= 8;
-                if (pad0.buttons & PADLdown)   rotation.vx += 8;
-                if (pad0.buttons & PADLleft)   rotation.vy -= 8;
-                if (pad0.buttons & PADLright)  rotation.vy += 8;
-                if (pad0.buttons & PADRup)     translation.vy -= 2;
-                if (pad0.buttons & PADRdown)   translation.vy += 2;
-                if (pad0.buttons & PADRleft)   translation.vx -= 2;
-                if (pad0.buttons & PADRright)  translation.vx += 2;
+                if (pad0.buttons & PADL1)      cube.obj.position.vz -= 4;
+                if (pad0.buttons & PADR1)      cube.obj.position.vz += 4;
+                if (pad0.buttons & PADL2)      cube.obj.rotation.vz -= 8;
+                if (pad0.buttons & PADR2)      cube.obj.rotation.vz += 8;
+                if (pad0.buttons & PADLup)     cube.obj.rotation.vx -= 8;
+                if (pad0.buttons & PADLdown)   cube.obj.rotation.vx += 8;
+                if (pad0.buttons & PADLleft)   cube.obj.rotation.vy -= 8;
+                if (pad0.buttons & PADLright)  cube.obj.rotation.vy += 8;
+                if (pad0.buttons & PADRup)     cube.obj.position.vy -= 2;
+                if (pad0.buttons & PADRdown)   cube.obj.position.vy += 2;
+                if (pad0.buttons & PADRleft)   cube.obj.position.vx -= 2;
+                if (pad0.buttons & PADRright)  cube.obj.position.vx += 2;
             }
 
             if (pad0.buttons & PADselect) {
-                resetCube(&rotation, &translation);
+                resetCube(&cube.obj.rotation, &cube.obj.position);
             }
 
             if (pad0.buttons & PADstart) {
@@ -289,77 +304,82 @@ int main(void) {
             }
 
             // LS Up
-            if (pad0.leftstick.y < 103) {
-                camPos.vx -= ((csin(tempRot.vy) * ccos(tempRot.vx)) >> 12) << 2;
-				camPos.vy += csin(tempRot.vx) << 2;
-				camPos.vz += ((ccos(tempRot.vy) * ccos(tempRot.vx)) >> 12) << 2;
+            if (pad0.leftstick.y < ANALOGUE_MINNEG) {
+                camera.position.vx -= ((csin(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
+				camera.position.vy += csin(rRot.vx) << 2;
+				camera.position.vz += ((ccos(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
             }
             // LS Down
-            else if (pad0.leftstick.y > 151) {
-                camPos.vx += ((csin(tempRot.vy) * ccos(tempRot.vx)) >> 12) << 2;
-				camPos.vy -= csin(tempRot.vx) << 2;
-				camPos.vz -= ((ccos(tempRot.vy) * ccos(tempRot.vx)) >> 12) << 2;
+            else if (pad0.leftstick.y > ANALOGUE_MINPOS) {
+                camera.position.vx += ((csin(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
+				camera.position.vy -= csin(rRot.vx) << 2;
+				camera.position.vz -= ((ccos(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
             }
 
             // LS Left
-            if (pad0.leftstick.x < 103) {
-                camPos.vx -= ccos(tempRot.vy) << 2;
-				camPos.vz -= csin(tempRot.vy) << 2;
+            if (pad0.leftstick.x < ANALOGUE_MINNEG) {
+                camera.position.vx -= ccos(rRot.vy) << 2;
+				camera.position.vz -= csin(rRot.vy) << 2;
             }
             // LS Right
-            else if (pad0.leftstick.x > 151) {
-                camPos.vx += ccos(tempRot.vy) << 2;
-				camPos.vz += csin(tempRot.vy) << 2;
+            else if (pad0.leftstick.x > ANALOGUE_MINPOS) {
+                camera.position.vx += ccos(rRot.vy) << 2;
+				camera.position.vz += csin(rRot.vy) << 2;
             }
-
 
             // RS Up
-            if (pad0.rightstick.y < 103) {
-                camRot.vx -= ONE*8;
+            if (pad0.rightstick.y < ANALOGUE_MINNEG) {
+                camera.rotation.vx -= ONE * 8;
             }
             // RS Down
-            else if (pad0.rightstick.y > 151) {
-                camRot.vx += ONE*8;
+            else if (pad0.rightstick.y > ANALOGUE_MINPOS) {
+                camera.rotation.vx += ONE * 8;
             }
 
             // RS Left
-            if (pad0.rightstick.x < 103) {
-                camRot.vy += ONE*8;
+            if (pad0.rightstick.x < ANALOGUE_MINNEG) {
+                camera.rotation.vy += ONE * 8;
             }
             // RS Right
-            else if (pad0.rightstick.x > 151) {
-                camRot.vy -= ONE*8;
+            else if (pad0.rightstick.x > ANALOGUE_MINPOS) {
+                camera.rotation.vy -= ONE * 8;
             }
 
-            RotMatrix(&tempRot, &camTransform);
+            RotMatrix(&rRot, &camera.transform);
 
-            tempPos.vx = -camPos.vx >> 12;
-            tempPos.vy = -camPos.vy >> 12;
-            tempPos.vz = -camPos.vz >> 12;
+            rPos.vx = -camera.position.vx >> 12;
+            rPos.vy = -camera.position.vy >> 12;
+            rPos.vz = -camera.position.vz >> 12;
 
-            ApplyMatrixLV(&camTransform, &tempPos, &tempPos);
-            TransMatrix(&camTransform, &tempPos);
+            ApplyMatrixLV(&camera.transform, &rPos, &rPos);
+            TransMatrix(&camera.transform, &rPos);
 
-            SetRotMatrix(&camTransform);
-            SetTransMatrix(&camTransform);
+            SetRotMatrix(&camera.transform);
+            SetTransMatrix(&camera.transform);
         }
         
         if (AutoRotate) {
-            rotation.vy += 16;
-            rotation.vz += 16;
+            cube.obj.rotation.vy += 16;
+            cube.obj.rotation.vz += 16;
         }
 
+        /*
         if (pad0.buttons > 0) {
             lastInput = pad0.buttons;
         }
+        */
 
-        RotMatrix(&rotation, &transform);
-        TransMatrix(&transform, &translation);
+        // Updates cube's local transform
+        RotMatrix(&cube.obj.rotation, &cube.obj.transform);
+        TransMatrix(&cube.obj.transform, &cube.obj.position);
 
-        CompMatrixLV(&camTransform, &transform, &cubeRenderTransform);
-        CompMatrixLV(&camTransform, &floorTransform, &floorRenderTransform);
+        // Calculates render transforms for cube and floor
+        CompMatrixLV(&camera.transform, &cube.obj.transform, &cube.renderTransform);
+        CompMatrixLV(&camera.transform, &floor.obj.transform, &floor.renderTransform);
 
         // Initialises a linked list for OT / clears (zeroes?) OT for current frame in reverse order (faster)
+        // "When an OT is initialized, the polygons are unlinked, and only then is a re-sort possible. 
+        // Therefore, it is always necessary to initialize an OT prior to executing a sort." - Library Overview, 10-8
         ClearOTagR(cdb->ot, OTSIZE);
 
         //FntPrint("Status: %x\n", pad0.status);
@@ -369,15 +389,15 @@ int main(void) {
         FntPrint("Stick L XY: (%02x, %02x)\n", pad0.leftstick.x, pad0.leftstick.y);
         FntPrint("Stick R XY: (%02x, %02x)\n\n", pad0.rightstick.x, pad0.rightstick.y);
 
-        FntPrint("TempRot: %d, %d\n", tempRot.vx, tempRot.vy);
-        FntPrint("CamRot: %d, %d\n", camRot.vx, camRot.vy);
-        FntPrint("TempPos: %d, %d, %d\n", tempPos.vx, tempPos.vy, tempPos.vz);
-        FntPrint("CamPos: %d, %d, %d\n", camPos.vx, camPos.vy, camPos.vz);
+        FntPrint("R_Rot: %04d, %04d\n", rRot.vx, rRot.vy);
+        FntPrint("R_Pos: %04d, %04d, %04d\n\n", rPos.vx, rPos.vy, rPos.vz);
 
-        // Update cube
-        drawFloor(cdb->ot, &cdb->floor, &floorRenderTransform);
-        add_cube(cdb->ot, cdb->s, &cubeRenderTransform);
-        
+        FntPrint("C_Rot: %08d, %08d\n", camera.rotation.vx, camera.rotation.vy);
+        FntPrint("C_Pos: %08d, %08d, %08d\n", camera.position.vx, camera.position.vy, camera.position.vz);
+
+        // Draw cube and floor
+        DrawPolyFQuad(cdb->ot, &floor);
+        DrawPolyFQuad(cdb->ot, &cube);
 
         // Wait for previous frame to have finished drawing if needed
         DrawSync(0);
