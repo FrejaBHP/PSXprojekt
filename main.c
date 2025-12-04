@@ -4,6 +4,9 @@
 #include <libapi.h>
 //#include <inline_c.h>
 #include <stdlib.h>
+#include <stdbool.h>
+
+#include "objects.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
@@ -14,7 +17,7 @@
 
 #define PLAYERHEIGHT 64
 #define PLAYERWIDTHHALF 24
-#define CAMERADISTANCE 160
+#define CAMERADISTANCE 192 // 160
 
 #define CUBESIZE 96
 #define CUBEHALF CUBESIZE / 2
@@ -25,36 +28,6 @@
 #define ANALOGUE_DEADZONE 24
 #define ANALOGUE_MINPOS ANALOGUE_MID + ANALOGUE_DEADZONE
 #define ANALOGUE_MINNEG ANALOGUE_MID - ANALOGUE_DEADZONE
-
-// Holds Position, Rotation and Transform for an "object". Probably could use a better name.
-typedef struct GameObject {
-    VECTOR position;
-    SVECTOR rotation;
-    MATRIX transform;
-} GameObject;
-
-// Same as GameObject, except uses a VECTOR for rotation instead of SVECTOR
-typedef struct CameraObject {
-    VECTOR position;
-    VECTOR rotation;
-    MATRIX transform;
-} CameraObject;
-
-// Extends GameObject and can also hold all the data needed to draw a polygon
-typedef struct PolyObject {
-    GameObject obj;
-    MATRIX renderTransform;
-    u_char polySides;
-    ushort polyLength;
-    void* polyPtr;
-    SVECTOR* verticesPtr;
-    int* indicesPtr;
-} PolyObject;
-
-typedef struct PlayerObject {
-    PolyObject poly;
-    CameraObject* cameraPtr;
-} PlayerObject;
 
 // (Double) Buffer struct
 typedef struct DB {
@@ -89,20 +62,88 @@ void UpdatePad(GamePad* pad) {
     pad->rightstick.y = pad->dataBuffer[5];
 }
 
+PlayerObject* player = NULL;
+
+// Lazy and likely fragile attempt at influencing sorting order
+static void OrderThing(long* otz, int dp) {
+    if (dp == DRP_Low) {
+        if (*otz + 256 < OTSIZE) {
+            *otz += 256;
+        }
+    }
+    else if (dp == DRP_High) {
+        if (*otz - 256 < OTSIZE) {
+            *otz -= 256;
+        }
+    }
+}
+
+static void AddPolyF(PolyObject* pobj, u_long* ot) {
+    long p, otz, flg;
+    int nclip;
+
+    PushMatrix();
+
+    SetRotMatrix(&pobj->renderTransform);
+    SetTransMatrix(&pobj->renderTransform);
+
+    if (pobj->polySides == 4) {
+        POLY_F4* poly = (POLY_F4*)pobj->polyPtr;
+
+        for (size_t i = 0; i < (pobj->polyLength * pobj->polySides); i += pobj->polySides, ++poly) {
+            // Non-Average version (RotNclip4) presents layering issues, at least tested on floor against Average cube
+            nclip = RotAverageNclip4(
+                &pobj->verticesPtr[pobj->indicesPtr[i + 0]], &pobj->verticesPtr[pobj->indicesPtr[i + 1]],
+                &pobj->verticesPtr[pobj->indicesPtr[i + 2]], &pobj->verticesPtr[pobj->indicesPtr[i + 3]],
+                (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x3, (long*)&poly->x2, &p, &otz, &flg
+            );
+
+            if (nclip <= 0) {
+                continue;
+            }
+
+            if ((otz > 0) && (otz < OTSIZE)) {
+                OrderThing(&otz, pobj->drPrio);
+                AddPrim(&ot[otz], poly);
+            }
+        }
+    }
+    else if (pobj->polySides == 3) {
+        POLY_F3* poly = (POLY_F3*)pobj->polyPtr;
+
+        for (size_t i = 0; i < (pobj->polyLength * pobj->polySides); i += pobj->polySides, ++poly) {
+            nclip = RotAverageNclip3(
+                &pobj->verticesPtr[pobj->indicesPtr[i + 0]], &pobj->verticesPtr[pobj->indicesPtr[i + 1]],
+                &pobj->verticesPtr[pobj->indicesPtr[i + 2]],
+                (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x2, &p, &otz, &flg
+            );
+
+            if (nclip <= 0) {
+                continue;
+            }
+
+            if ((otz > 0) && (otz < OTSIZE)) {
+                OrderThing(&otz, pobj->drPrio);
+                AddPrim(&ot[otz], poly);
+            }
+        }
+    }
+
+    PopMatrix();
+}
+
+static SVECTOR colBoxVertices[] = {
+    { -32, -12, -32, 0 }, {  32, -12, -32, 0 },
+    {  32,   0, -32, 0 }, { -32,   0, -32, 0 },
+    { -32, -12,  32, 0 }, {  32, -12,  32, 0 },
+    {  32,   0,  32, 0 }, { -32,   0,  32, 0 },
+};
+
 static SVECTOR playerBoxVertices[] = {
     { -PLAYERWIDTHHALF, -PLAYERHEIGHT, -PLAYERWIDTHHALF, 0 }, {  PLAYERWIDTHHALF, -PLAYERHEIGHT, -PLAYERWIDTHHALF, 0 },
     {  PLAYERWIDTHHALF, 0, -PLAYERWIDTHHALF, 0 }, { -PLAYERWIDTHHALF, 0, -PLAYERWIDTHHALF, 0 },
     { -PLAYERWIDTHHALF, -PLAYERHEIGHT,  PLAYERWIDTHHALF, 0 }, {  PLAYERWIDTHHALF, -PLAYERHEIGHT,  PLAYERWIDTHHALF, 0 },
     {  PLAYERWIDTHHALF, 0,  PLAYERWIDTHHALF, 0 }, { -PLAYERWIDTHHALF, 0,  PLAYERWIDTHHALF, 0 },
-};
-
-static int playerBoxIndices[] = {
-    0, 1, 2, 3, 
-    1, 5, 6, 2, 
-    5, 4, 7, 6, 
-    4, 0, 3, 7, 
-    4, 5, 1, 0, 
-    6, 7, 3, 2
 };
 
 static SVECTOR cubeVertices[] = {
@@ -142,72 +183,84 @@ static void initFloor(POLY_F4* floor, CVECTOR* col) {
     setRGB0(floor, col->r, col->g, col->b);
 }
 
-static void AddPolyFQuad(u_long* ot, PolyObject* pobj) {
-    long p, otz, flg;
-    int nclip;
+PolyObject* CreateColPlatform(VECTOR* pos, CVECTOR* col) {
+    PolyObject* platform = calloc(1, sizeof(PolyObject));
+    POLY_F4* pplf = calloc(6, sizeof(POLY_F4));
 
-    PushMatrix();
+    if (platform != NULL) {
+        setVector(&platform->obj.position, pos->vx, pos->vy, pos->vz);
+        platform->polyLength = 6;
+        platform->polySides = 4;
+        platform->verticesPtr = colBoxVertices;
+        platform->indicesPtr = cubeIndices;
+        platform->polyPtr = pplf;
+        platform->drPrio = DRP_Neutral;
+        platform->collides = true;
+        platform->boxHeight = 12;
+        platform->boxWidth = 64;
+        //platform->add = &AddPolyF;
 
-    SetRotMatrix(&pobj->renderTransform);
-    SetTransMatrix(&pobj->renderTransform);
-
-    POLY_F4* poly = (POLY_F4*)pobj->polyPtr;
-
-    for (size_t i = 0; i < (pobj->polyLength * pobj->polySides); i += 4, ++poly) {
-        // Non-Average version (RotNclip4) presents layering issues, at least tested on floor against Average cube
-        nclip = RotAverageNclip4(
-            &pobj->verticesPtr[pobj->indicesPtr[i + 0]], &pobj->verticesPtr[pobj->indicesPtr[i + 1]],
-            &pobj->verticesPtr[pobj->indicesPtr[i + 2]], &pobj->verticesPtr[pobj->indicesPtr[i + 3]],
-            (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x3, (long*)&poly->x2, &p, &otz, &flg
-        );
-
-        if (nclip <= 0) {
-            continue;
+        for (size_t i = 0; i < 6; ++i) {
+            SetPolyF4(&pplf[i]);
+            setRGB0(&pplf[i], col[i].r, col[i].g, col[i].b);
         }
 
-        if ((otz > 0) && (otz < OTSIZE)) {
-            AddPrim(&ot[otz], poly);
-        }
+        RotMatrix(&platform->obj.rotation, &platform->obj.transform);
+        TransMatrix(&platform->obj.transform, &platform->obj.position);
     }
 
-    PopMatrix();
+    return platform;
 }
 
-static void UpdatePlayer(PlayerObject* player, VECTOR* tPos, VECTOR* cPos) {
-    player->cameraPtr->position = player->poly.obj.position;
-    player->cameraPtr->position.vy += PLAYERHEIGHT * ONE * 2;
-    player->cameraPtr->position.vz += CAMERADISTANCE * ONE;
+void CreatePlayer(CVECTOR* col) {
+    player = calloc(1, sizeof(PlayerObject));
 
-    cPos->vx = player->cameraPtr->position.vx >> 12;
-    cPos->vy = player->cameraPtr->position.vy >> 12;
-    cPos->vz = player->cameraPtr->position.vz >> 12;
-    //FntPrint("C1: %04d, %04d, %04d\n", cPos->vx, cPos->vy, cPos->vz);
+    CameraObject* camera = calloc(1, sizeof(CameraObject));
+    POLY_F4* pplayer = calloc(6, sizeof(POLY_F4));
+
+    if (player != NULL) {
+        setVector(&player->poly.obj.position, 0, 0, SCREEN_Z * 2);
+        player->poly.polyLength = 6;
+        player->poly.polySides = 4;
+        player->poly.verticesPtr = playerBoxVertices;
+        player->poly.indicesPtr = cubeIndices;
+        player->poly.polyPtr = pplayer;
+        player->poly.drPrio = DRP_Neutral;
+        player->poly.collides = false;
+        player->poly.boxHeight = 64;
+        player->poly.boxWidth = 48;
+        //player->poly.add = &AddPolyF;
+
+        if (camera != NULL) {
+            player->cameraPtr = camera;
+        }
+
+        for (size_t i = 0; i < 6; ++i) {
+            SetPolyF4(&pplayer[i]);
+            setRGB0(&pplayer[i], col[i].r, col[i].g, col[i].b);
+        }
+
+        RotMatrix(&player->poly.obj.rotation, &player->poly.obj.transform);
+        TransMatrix(&player->poly.obj.transform, &player->poly.obj.position);
+    }
+}
+
+static void UpdatePlayer(VECTOR* tPos, VECTOR* cPos) {
+    player->cameraPtr->position = player->poly.obj.position;
+    player->cameraPtr->position.vy -= PLAYERHEIGHT * ONE * 2;
+    player->cameraPtr->position.vz -= CAMERADISTANCE * ONE;
+
+    cPos->vx = -player->cameraPtr->position.vx >> 12;
+    cPos->vy = -player->cameraPtr->position.vy >> 12;
+    cPos->vz = -player->cameraPtr->position.vz >> 12;
 
     ApplyMatrixLV(&player->cameraPtr->transform, cPos, cPos);
     TransMatrix(&player->cameraPtr->transform, cPos);
-    //FntPrint("C2: %04d, %04d, %04d\n\n", cPos->vx, cPos->vy, cPos->vz);
     
     SetRotMatrix(&player->cameraPtr->transform);
     SetTransMatrix(&player->cameraPtr->transform);
 
     TransMatrix(&player->poly.obj.transform, tPos);
-
-
-    /*
-    VECTOR diffVector = {
-        player->poly.obj.position.vx - player->cameraPtr->position.vx,
-        player->poly.obj.position.vy - player->cameraPtr->position.vy,
-        player->poly.obj.position.vz - player->cameraPtr->position.vz,
-    };
-
-    //VECTOR normRotation;
-    //VectorNormal(&player->cameraPtr->rotation, &normRotation);
-
-    player->cameraPtr->position.vx = player->poly.obj.position.vx;
-    player->cameraPtr->position.vy = player->poly.obj.position.vy - (ONE * CAMERADISTANCE);
-    player->cameraPtr->position.vz = player->poly.obj.position.vz - (ONE * CAMERADISTANCE);
-    //TransMatrix(&player->cameraPtr->transform, &player->cameraPtr->position);
-    */
 }
 
 void resetCube(SVECTOR* rot, VECTOR* trans) {
@@ -221,33 +274,22 @@ void resetCube(SVECTOR* rot, VECTOR* trans) {
 }
 
 int main(void) {
+    // The PlayStation does not assign a usable heap to the program. Instead, it has to be asigned by the program
+    // First 0x10000 bytes are taken up by the kernel, followed by libraries and data, until finally the rest is available
+    // The heap takes up 0x80000000 till 0x80200000 (or 0x80800000 with the 8MB RAM in debug mode over the 2MB standard)
+    // Where the heap can be allowed to be placed should be determined from the Linker Address Map (.map)
+    // It is set to start at 0x80040000 here to give hopefully more than enough space to the previous overhead
+    // Function signature for InitHeap() takes a start address and a size in bytes (needs to be a multiple of 4)
+    // InitHeap() only allows standard malloc(), calloc(), free(), etc. The numbered versions, eg malloc<2 or 3>(), require use of InitHeap<2 or 3>() instead
+    InitHeap((u_long*)0x80040000, (u_long)0x20000);
+
     DB db[2];
     DB* cdb;
 
     GamePad pad0 = { 0 };
     GamePad pad1 = { 0 };
 
-    CameraObject camera = {
-        .position = { 0 },
-        .rotation = { 0 }
-    };
-
-    POLY_F4 pplayer[6];
-    PlayerObject player = { 
-        .poly = {
-            .obj = {
-                .position = { 0, 0, SCREEN_Z * 2, 0 },
-                .rotation = { 0 }
-            },
-            .polyLength = 6,
-            .polySides = 4,
-            .verticesPtr = playerBoxVertices,
-            .indicesPtr = playerBoxIndices,
-            .polyPtr = &pplayer
-        },
-        .cameraPtr = &camera
-    };
-    short playerIsOnFloor = 1;
+    CVECTOR col[6];
 
     POLY_F4 pcube[6];
     PolyObject cube = { 
@@ -259,10 +301,12 @@ int main(void) {
         .polySides = 4,
         .verticesPtr = cubeVertices,
         .indicesPtr = cubeIndices,
-        .polyPtr = &pcube
+        .polyPtr = &pcube,
+        .drPrio = DRP_Neutral,
+        .collides = false,
+        //.add = &AddPolyF
     };
-    CVECTOR col[6];
-
+    
     POLY_F4 pfloor;
     PolyObject floor = { 
         .obj = {
@@ -273,7 +317,10 @@ int main(void) {
         .polySides = 4,
         .verticesPtr = floorVertices,
         .indicesPtr = floorIndices,
-        .polyPtr = &pfloor
+        .polyPtr = &pfloor,
+        .drPrio = DRP_Low,
+        .collides = false,
+        //.add = &AddPolyF
     };
     CVECTOR floorColour = { .r = 0, .g = 128, .b = 0 };
 
@@ -283,14 +330,12 @@ int main(void) {
     SVECTOR rRot = { 0 };
 
     VECTOR cPos = { 0 };
-
-    //ushort lastInput = 0;
     
     int PadStatus;
     int TPressed = 0;
     int AutoRotate = 1;
 
-    // Initialises the controllers with the Kernel library function
+    // Initialises the controllers with the Kernel library function. Max data buffer size is 34B
     InitPAD(pad0.dataBuffer, 34, pad1.dataBuffer, 34);
     StartPAD();
 
@@ -328,16 +373,18 @@ int main(void) {
     }
 
     // Init cube and floor
-    initCube((POLY_F4*)player.poly.polyPtr, col);
+    //initCube((POLY_F4*)player->poly.polyPtr, col);
+    CreatePlayer(col);
+    bool isPlayerOnFloor = true;
+
+    PolyObject* colPlatform = CreateColPlatform(&(VECTOR){ 0, -24, SCREEN_Z / 2 }, col);
+
     initCube((POLY_F4*)cube.polyPtr, col);
     initFloor((POLY_F4*)floor.polyPtr, &floorColour);
 
     // Update floor transform
     RotMatrix(&floor.obj.rotation, &floor.obj.transform);
     TransMatrix(&floor.obj.transform, &floor.obj.position);
-
-    RotMatrix(&player.poly.obj.rotation, &player.poly.obj.transform);
-    TransMatrix(&player.poly.obj.transform, &player.poly.obj.position);
 
     // Actually display the things on screen
     SetDispMask(1);
@@ -348,13 +395,16 @@ int main(void) {
     // Wait for VBLANK to allow controller to initialise (otherwise it starts off with pad->buttons being FFFF for the first frame)
     VSync(0);
 
+    int heightDif;
+    bool occupiesSameSpace = false;
+
     while (1) {
         // Swap used buffer
         cdb = (cdb == &db[0]) ? &db[1] : &db[0];
 
-        rRot.vx = camera.rotation.vx >> 12;
-        rRot.vy = camera.rotation.vy >> 12;
-        rRot.vz = camera.rotation.vz >> 12;
+        rRot.vx = player->cameraPtr->rotation.vx >> 12;
+        rRot.vy = player->cameraPtr->rotation.vy >> 12;
+        rRot.vz = player->cameraPtr->rotation.vz >> 12;
 
         // Translate pad data buffer into a readable format
         UpdatePad(&pad0);
@@ -394,82 +444,92 @@ int main(void) {
 
             // LS Up (Move forward)
             if (pad0.leftstick.y < ANALOGUE_MINNEG) {
-                player.poly.obj.position.vx += ((csin(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
-				player.poly.obj.position.vz -= ((ccos(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
+                player->poly.obj.position.vx -= ((csin(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
+				player->poly.obj.position.vz += ((ccos(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
             }
             // LS Down (Move backward)
             else if (pad0.leftstick.y > ANALOGUE_MINPOS) {
-                player.poly.obj.position.vx -= ((csin(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
-				player.poly.obj.position.vz += ((ccos(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
+                player->poly.obj.position.vx += ((csin(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
+				player->poly.obj.position.vz -= ((ccos(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
             }
 
             // LS Left (Strafe left)
             if (pad0.leftstick.x < ANALOGUE_MINNEG) {
-                player.poly.obj.position.vx += ccos(rRot.vy) << 2;
-				player.poly.obj.position.vz += csin(rRot.vy) << 2;
+                player->poly.obj.position.vx -= ccos(rRot.vy) << 2;
+				player->poly.obj.position.vz -= csin(rRot.vy) << 2;
             }
             // LS Right (Strafe right)
             else if (pad0.leftstick.x > ANALOGUE_MINPOS) {
-                player.poly.obj.position.vx -= ccos(rRot.vy) << 2;
-				player.poly.obj.position.vz -= csin(rRot.vy) << 2;
+                player->poly.obj.position.vx += ccos(rRot.vy) << 2;
+				player->poly.obj.position.vz += csin(rRot.vy) << 2;
             }
 
             // RS Up
             if (pad0.rightstick.y < ANALOGUE_MINNEG) {
-                camera.rotation.vx -= ONE * 8;
+                player->cameraPtr->rotation.vx -= ONE * 8;
             }
             // RS Down
             else if (pad0.rightstick.y > ANALOGUE_MINPOS) {
-                camera.rotation.vx += ONE * 8;
+                player->cameraPtr->rotation.vx += ONE * 8;
             }
 
             // RS Left
             if (pad0.rightstick.x < ANALOGUE_MINNEG) {
-                camera.rotation.vy += ONE * 8;
+                player->cameraPtr->rotation.vy += ONE * 8;
             }
             // RS Right
             else if (pad0.rightstick.x > ANALOGUE_MINPOS) {
-                camera.rotation.vy -= ONE * 8;
+                player->cameraPtr->rotation.vy -= ONE * 8;
             }
 
 
-            if (playerIsOnFloor == 1) {
+            // Ugly, slow, and temporary manual platform check, don't mind me
+            heightDif = player->poly.obj.transform.t[1] - (colPlatform->obj.transform.t[1] - colPlatform->boxHeight);
+
+            // If player is within the same XY space as the platform
+            if (((player->poly.obj.transform.t[0] + player->poly.boxWidth / 2) > (colPlatform->obj.transform.t[0] - colPlatform->boxWidth / 2))
+                && ((player->poly.obj.transform.t[0] - player->poly.boxWidth / 2) < (colPlatform->obj.transform.t[0] + colPlatform->boxWidth / 2))
+                && ((player->poly.obj.transform.t[2] + player->poly.boxWidth / 2) > (colPlatform->obj.transform.t[2] - colPlatform->boxWidth / 2))
+                && ((player->poly.obj.transform.t[2] - player->poly.boxWidth / 2) < (colPlatform->obj.transform.t[2] + colPlatform->boxWidth / 2))) {
+                
+                occupiesSameSpace = true;
+            }
+            else {
+                occupiesSameSpace = false;
+            }
+
+            // Is player on platform
+            if (heightDif == 0 && occupiesSameSpace) {
+                isPlayerOnFloor = true;
+            }
+            else if (player->poly.obj.position.vy == 0) {
+                isPlayerOnFloor = true;
+            }
+            else if (player->poly.obj.position.vy > 0) {
+                player->poly.obj.position.vy = 0;
+                isPlayerOnFloor = true;
+            }
+            else {
+                isPlayerOnFloor = false;
+            }
+
+            if (isPlayerOnFloor) {
                 if (pad0.buttons & PADRdown) {
-                    player.poly.obj.position.vy += 48 * ONE;
+                    player->poly.obj.position.vy -= 48 * ONE;
                 }
             }
             else {
-                player.poly.obj.position.vy -= ONE;
+                player->poly.obj.position.vy += ONE;
             }
 
-            if (player.poly.obj.position.vy == 0) {
-                playerIsOnFloor = 1;
-            }
-            else if (player.poly.obj.position.vy < 0) {
-                player.poly.obj.position.vy = 0;
-                playerIsOnFloor = 1;
-            }
-            else {
-                playerIsOnFloor = 0;
-            }
+            rPos.vx = player->poly.obj.position.vx >> 12;
+            rPos.vy = player->poly.obj.position.vy >> 12;
+            rPos.vz = player->poly.obj.position.vz >> 12;
 
-            rPos.vx = -player.poly.obj.position.vx >> 12;
-            rPos.vy = -player.poly.obj.position.vy >> 12;
-            rPos.vz = -player.poly.obj.position.vz >> 12;
-
-            RotMatrix(&player.poly.obj.rotation, &player.poly.obj.transform);
-            RotMatrix(&rRot, &camera.transform);
+            RotMatrix(&player->poly.obj.rotation, &player->poly.obj.transform);
+            RotMatrix(&rRot, &player->cameraPtr->transform);
             
-            //TransMatrix(&player.poly.obj.transform, &rPos);
-            //TransMatrix(&player.poly.obj.transform, &player.poly.obj.position);
-
-            UpdatePlayer(&player, &rPos, &cPos);
-
-            //rPos.vx = -camera.position.vx >> 12;
-            //rPos.vy = -camera.position.vy >> 12;
-            //rPos.vz = -camera.position.vz >> 12;
-
-            
+            UpdatePlayer(&rPos, &cPos);
         }
         
         if (AutoRotate) {
@@ -477,21 +537,16 @@ int main(void) {
             cube.obj.rotation.vz += 16;
         }
 
-        /*
-        if (pad0.buttons > 0) {
-            lastInput = pad0.buttons;
-        }
-        */
-
-        CompMatrixLV(&camera.transform, &player.poly.obj.transform, &player.poly.renderTransform);
+        CompMatrixLV(&player->cameraPtr->transform, &player->poly.obj.transform, &player->poly.renderTransform);
 
         // Updates cube's local transform
         RotMatrix(&cube.obj.rotation, &cube.obj.transform);
         TransMatrix(&cube.obj.transform, &cube.obj.position);
 
         // Calculates render transforms for cube and floor
-        CompMatrixLV(&camera.transform, &cube.obj.transform, &cube.renderTransform);
-        CompMatrixLV(&camera.transform, &floor.obj.transform, &floor.renderTransform);
+        CompMatrixLV(&player->cameraPtr->transform, &cube.obj.transform, &cube.renderTransform);
+        CompMatrixLV(&player->cameraPtr->transform, &floor.obj.transform, &floor.renderTransform);
+        CompMatrixLV(&player->cameraPtr->transform, &colPlatform->obj.transform, &colPlatform->renderTransform);
 
         // Initialises a linked list for OT / clears (zeroes?) OT for current frame in reverse order (faster)
         // "When an OT is initialized, the polygons are unlinked, and only then is a re-sort possible. 
@@ -505,33 +560,33 @@ int main(void) {
         //FntPrint("Stick L XY: (%02x, %02x)\n", pad0.leftstick.x, pad0.leftstick.y);
         //FntPrint("Stick R XY: (%02x, %02x)\n\n", pad0.rightstick.x, pad0.rightstick.y);
 
-        FntPrint("CM0: %04d, %04d, %04d\n", player.cameraPtr->transform.m[0][0], player.cameraPtr->transform.m[0][1], player.cameraPtr->transform.m[0][2]);
-        FntPrint("CM1: %04d, %04d, %04d\n", player.cameraPtr->transform.m[1][0], player.cameraPtr->transform.m[1][1], player.cameraPtr->transform.m[1][2]);
-        FntPrint("CM2: %04d, %04d, %04d\n", player.cameraPtr->transform.m[2][0], player.cameraPtr->transform.m[2][1], player.cameraPtr->transform.m[2][2]);
-        FntPrint("CT0: %04d, %04d, %04d\n\n", player.cameraPtr->transform.t[0], player.cameraPtr->transform.t[1], player.cameraPtr->transform.t[2]);
+        FntPrint("CM0: %04d, %04d, %04d\n", player->cameraPtr->transform.m[0][0], player->cameraPtr->transform.m[0][1], player->cameraPtr->transform.m[0][2]);
+        FntPrint("CM1: %04d, %04d, %04d\n", player->cameraPtr->transform.m[1][0], player->cameraPtr->transform.m[1][1], player->cameraPtr->transform.m[1][2]);
+        FntPrint("CM2: %04d, %04d, %04d\n", player->cameraPtr->transform.m[2][0], player->cameraPtr->transform.m[2][1], player->cameraPtr->transform.m[2][2]);
+        FntPrint("CT0: %04d, %04d, %04d\n\n", player->cameraPtr->transform.t[0], player->cameraPtr->transform.t[1], player->cameraPtr->transform.t[2]);
 
-        FntPrint("PM0: %04d, %04d, %04d\n", player.poly.obj.transform.m[0][0], player.poly.obj.transform.m[0][1], player.poly.obj.transform.m[0][2]);
-        FntPrint("PM1: %04d, %04d, %04d\n", player.poly.obj.transform.m[1][0], player.poly.obj.transform.m[1][1], player.poly.obj.transform.m[1][2]);
-        FntPrint("PM2: %04d, %04d, %04d\n", player.poly.obj.transform.m[2][0], player.poly.obj.transform.m[2][1], player.poly.obj.transform.m[2][2]);
-        FntPrint("PT0: %04d, %04d, %04d\n\n", player.poly.obj.transform.t[0], player.poly.obj.transform.t[1], player.poly.obj.transform.t[2]);
-
-        //FntPrint("PRM0: %04d, %04d, %04d\n", player.poly.renderTransform.m[0][0], player.poly.renderTransform.m[0][1], player.poly.renderTransform.m[0][2]);
-        //FntPrint("PRM1: %04d, %04d, %04d\n", player.poly.renderTransform.m[1][0], player.poly.renderTransform.m[1][1], player.poly.renderTransform.m[1][2]);
-        //FntPrint("PRM2: %04d, %04d, %04d\n", player.poly.renderTransform.m[2][0], player.poly.renderTransform.m[2][1], player.poly.renderTransform.m[2][2]);
-        //FntPrint("PRT0: %04d, %04d, %04d\n\n", player.poly.renderTransform.t[0], player.poly.renderTransform.t[1], player.poly.renderTransform.t[2]);
-
-        //FntPrint("R_Rot: %04d, %04d\n", rRot.vx, rRot.vy);
-        FntPrint("C_Pos: %04d, %04d, %04d\n", cPos.vx, cPos.vy, cPos.vz);
-        FntPrint("P_Pos: %04d, %04d, %04d\n\n", rPos.vx, rPos.vy, rPos.vz);
+        FntPrint("PM0: %04d, %04d, %04d\n", player->poly.obj.transform.m[0][0], player->poly.obj.transform.m[0][1], player->poly.obj.transform.m[0][2]);
+        FntPrint("PM1: %04d, %04d, %04d\n", player->poly.obj.transform.m[1][0], player->poly.obj.transform.m[1][1], player->poly.obj.transform.m[1][2]);
+        FntPrint("PM2: %04d, %04d, %04d\n", player->poly.obj.transform.m[2][0], player->poly.obj.transform.m[2][1], player->poly.obj.transform.m[2][2]);
+        FntPrint("PT0: %04d, %04d, %04d\n\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
 
         //FntPrint("C_Rot: %08d, %08d\n", camera.rotation.vx, camera.rotation.vy);
-        FntPrint("C_Pos: %08d, %08d, %08d\n", camera.position.vx, camera.position.vy, camera.position.vz);
-        FntPrint("P_Pos: %08d, %08d, %08d\n", player.poly.obj.position.vx, player.poly.obj.position.vy, player.poly.obj.position.vz);
+        //FntPrint("C_Pos: %08d, %08d, %08d\n", player->cameraPtr->position.vx, player->cameraPtr->position.vy, player->cameraPtr->position.vz);
+        //FntPrint("P_Pos: %08d, %08d, %08d\n\n", player->poly.obj.position.vx, player->poly.obj.position.vy, player->poly.obj.position.vz);
 
-        // Draw cube and floor
-        AddPolyFQuad(cdb->ot, &player.poly);
-        AddPolyFQuad(cdb->ot, &floor);
-        AddPolyFQuad(cdb->ot, &cube);
+        //FntPrint("HDif: %d\n", heightDif);
+        //FntPrint("Space: %d\n", occupiesSameSpace);
+
+        // Add polys to OT
+        AddPolyF(&player->poly, cdb->ot);
+        AddPolyF(&floor, cdb->ot);
+        AddPolyF(&cube, cdb->ot);
+        AddPolyF(colPlatform, cdb->ot);
+
+        //player->poly.add(&player->poly, cdb->ot);
+        //floor.add(&floor, cdb->ot);
+        //cube.add(&cube, cdb->ot);
+        //colPlatform->add(colPlatform, cdb->ot);
 
         // Wait for previous frame to have finished drawing if needed
         DrawSync(0);
