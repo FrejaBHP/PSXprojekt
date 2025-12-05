@@ -7,9 +7,10 @@ enum DrawPriority {
 
 // Holds Position, Rotation and Transform for an "object". Probably could use a better name.
 typedef struct GameObject {
-    VECTOR position;
+    VECTOR position; // Position to update the Transform with. Position is ONE (4096) bigger than the actual values stored in the Transform
     SVECTOR rotation;
     MATRIX transform;
+    bool isStatic;
 } GameObject;
 
 // Same as GameObject, except uses a VECTOR for rotation instead of SVECTOR
