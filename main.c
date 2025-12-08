@@ -127,14 +127,47 @@ static void OrderThing(long* otz, int dp) {
     }
 }
 
-static void CameraTransformPoly(CameraObject* camera, PolyObject* pobj) {
-    // Update poly matrix
+long GetVectorPlaneLength64(VECTOR* vec) {
+    long cA;
+    long cB;
+    long cC;
+
+    cA = abs(vec->vx >> 6);
+    cB = abs(vec->vy >> 6);
+
+    cA *= cA;
+    cB *= cB;
+
+    cC = cA + cB;
+    cC = SquareRoot0(cC);
+
+    return cC;
+}
+
+// Update poly matrix
+static void UpdatePolyObject(PolyObject* pobj) {
+    // If object can move in any way, apply velocity
     if (!pobj->obj.isStatic) {
+        if (GetVectorPlaneLength64(&pobj->obj.velocity) > (pobj->obj.maxSpeed << 6)) {
+            VECTOR appliedVelocity = { 0 };
+
+            VectorNormal(&pobj->obj.velocity, &appliedVelocity);
+            appliedVelocity.vx *= pobj->obj.maxSpeed * ONE;
+            appliedVelocity.vz *= pobj->obj.maxSpeed * ONE;
+
+            addVector(&pobj->obj.position, &appliedVelocity);
+        }
+        else {
+            addVector(&pobj->obj.position, &pobj->obj.velocity);
+        }
+        
         VECTOR gridPos = { pobj->obj.position.vx >> 12, pobj->obj.position.vy >> 12, pobj->obj.position.vz >> 12 };
         RotMatrix_gte(&pobj->obj.rotation, &pobj->obj.transform);
         TransMatrix(&pobj->obj.transform, &gridPos);
     }
+}
 
+static void CameraTransformPoly(CameraObject* camera, PolyObject* pobj) {
     // Could get away with replacing this with a global instead of storing the render transform in every object
     gte_CompMatrix(&camera->transform, &pobj->obj.transform, &pobj->renderTransform);
         
@@ -239,6 +272,7 @@ void CreatePlayer(CVECTOR* col) {
         player->poly.collides = false;
         player->poly.boxHeight = 64;
         player->poly.boxWidth = 48;
+        player->poly.obj.maxSpeed = 5 * ONE;
         player->poly.obj.isStatic = false;
         //player->poly.add = &AddPolyF;
 
@@ -258,6 +292,10 @@ void CreatePlayer(CVECTOR* col) {
 
 static void UpdatePlayerCamera(VECTOR* tPos, VECTOR* cPos, SVECTOR* cRot) {
     RotMatrix(cRot, &player->cameraPtr->transform);
+
+    tPos->vx = player->poly.obj.position.vx >> 12;
+    tPos->vy = player->poly.obj.position.vy >> 12;
+    tPos->vz = player->poly.obj.position.vz >> 12;
 
     player->cameraPtr->position = player->poly.obj.position;
     player->cameraPtr->position.vy -= PLAYERHEIGHT * ONE * 2;
@@ -445,27 +483,33 @@ int main(void) {
                 TPressed = 0;
             }
 
+            // Clean this up later, preferably by writing a separate file for input handling
+            VECTOR inputVelocity = { 0 };
+
             // LS Up (Move forward)
             if (pad0.leftstick.y < ANALOGUE_MINNEG) {
-                player->poly.obj.position.vx -= ((csin(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
-				player->poly.obj.position.vz += ((ccos(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
+                inputVelocity.vx -= ((csin(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
+				inputVelocity.vz += ((ccos(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
             }
             // LS Down (Move backward)
             else if (pad0.leftstick.y > ANALOGUE_MINPOS) {
-                player->poly.obj.position.vx += ((csin(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
-				player->poly.obj.position.vz -= ((ccos(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
+                inputVelocity.vx += ((csin(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
+				inputVelocity.vz -= ((ccos(rRot.vy) * ccos(rRot.vx)) >> 12) << 2;
             }
 
             // LS Left (Strafe left)
             if (pad0.leftstick.x < ANALOGUE_MINNEG) {
-                player->poly.obj.position.vx -= ccos(rRot.vy) << 2;
-				player->poly.obj.position.vz -= csin(rRot.vy) << 2;
+                inputVelocity.vx -= ccos(rRot.vy) << 2;
+				inputVelocity.vz -= csin(rRot.vy) << 2;
             }
             // LS Right (Strafe right)
             else if (pad0.leftstick.x > ANALOGUE_MINPOS) {
-                player->poly.obj.position.vx += ccos(rRot.vy) << 2;
-				player->poly.obj.position.vz += csin(rRot.vy) << 2;
+                inputVelocity.vx += ccos(rRot.vy) << 2;
+				inputVelocity.vz += csin(rRot.vy) << 2;
             }
+
+            player->poly.obj.velocity.vx = inputVelocity.vx;
+            player->poly.obj.velocity.vz = inputVelocity.vz;
 
             // RS Up
             if (pad0.rightstick.y < ANALOGUE_MINNEG) {
@@ -501,14 +545,18 @@ int main(void) {
                 occupiesSameSpace = false;
             }
 
-            // Is player on platform
-            if (heightDif == 0 && occupiesSameSpace) {
+            // Is player on/over platform
+            if (heightDif < 0 && ((heightDif << 12) + player->poly.obj.velocity.vy) >= 0 && occupiesSameSpace) {
+                isPlayerOnFloor = true;
+                player->poly.obj.position.vy = (colPlatform->obj.transform.t[1] - colPlatform->boxHeight) * ONE;
+            }
+            else if (heightDif == 0 && occupiesSameSpace) {
                 isPlayerOnFloor = true;
             }
             else if (player->poly.obj.position.vy == 0) {
                 isPlayerOnFloor = true;
             }
-            else if (player->poly.obj.position.vy > 0) {
+            else if ((player->poly.obj.position.vy + player->poly.obj.velocity.vy) > 0) {
                 player->poly.obj.position.vy = 0;
                 isPlayerOnFloor = true;
             }
@@ -517,19 +565,15 @@ int main(void) {
             }
 
             if (isPlayerOnFloor) {
+                player->poly.obj.velocity.vy = 0;
+
                 if (pad0.buttons & PADRdown) {
-                    player->poly.obj.position.vy -= 48 * ONE;
+                    player->poly.obj.velocity.vy -= 8 * ONE;
                 }
             }
             else {
-                player->poly.obj.position.vy += ONE;
+                player->poly.obj.velocity.vy += ONE / 2;
             }
-
-            rPos.vx = player->poly.obj.position.vx >> 12;
-            rPos.vy = player->poly.obj.position.vy >> 12;
-            rPos.vz = player->poly.obj.position.vz >> 12;
-            
-            UpdatePlayerCamera(&rPos, &cPos, &rRot);
         }
         
         if (AutoRotate) {
@@ -558,15 +602,23 @@ int main(void) {
         FntPrint("CM1: %04d, %04d, %04d\n", player->cameraPtr->transform.m[1][0], player->cameraPtr->transform.m[1][1], player->cameraPtr->transform.m[1][2]);
         FntPrint("CM2: %04d, %04d, %04d\n", player->cameraPtr->transform.m[2][0], player->cameraPtr->transform.m[2][1], player->cameraPtr->transform.m[2][2]);
         FntPrint("CT0: %04d, %04d, %04d\n\n", player->cameraPtr->transform.t[0], player->cameraPtr->transform.t[1], player->cameraPtr->transform.t[2]);
-
-        FntPrint("PM0: %04d, %04d, %04d\n", player->poly.obj.transform.m[0][0], player->poly.obj.transform.m[0][1], player->poly.obj.transform.m[0][2]);
-        FntPrint("PM1: %04d, %04d, %04d\n", player->poly.obj.transform.m[1][0], player->poly.obj.transform.m[1][1], player->poly.obj.transform.m[1][2]);
-        FntPrint("PM2: %04d, %04d, %04d\n", player->poly.obj.transform.m[2][0], player->poly.obj.transform.m[2][1], player->poly.obj.transform.m[2][2]);
-        FntPrint("PT0: %04d, %04d, %04d\n\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
         */
 
+        //FntPrint("PM0: %04d, %04d, %04d\n", player->poly.obj.transform.m[0][0], player->poly.obj.transform.m[0][1], player->poly.obj.transform.m[0][2]);
+        //FntPrint("PM1: %04d, %04d, %04d\n", player->poly.obj.transform.m[1][0], player->poly.obj.transform.m[1][1], player->poly.obj.transform.m[1][2]);
+        //FntPrint("PM2: %04d, %04d, %04d\n", player->poly.obj.transform.m[2][0], player->poly.obj.transform.m[2][1], player->poly.obj.transform.m[2][2]);
+        FntPrint("PV : %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
+        FntPrint("PP : %06d, %06d, %06d\n", player->poly.obj.position.vx, player->poly.obj.position.vy, player->poly.obj.position.vz);
+        FntPrint("PT0: %06d, %06d, %06d\n\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
+        
         //FntPrint("HDif: %d\n", heightDif);
         //FntPrint("Space: %d\n", occupiesSameSpace);
+
+        for (size_t i = 0; i < 4; i++) {
+            UpdatePolyObject(activePolygons[i]);
+        }
+
+        UpdatePlayerCamera(&rPos, &cPos, &rRot);
 
         // Add polys to OT
         for (size_t i = 0; i < 4; i++) {

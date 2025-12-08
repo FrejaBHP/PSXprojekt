@@ -10,6 +10,8 @@ typedef struct GameObject {
     VECTOR position; // Position to update the Transform with. Position is ONE (4096) bigger than the actual values stored in the Transform
     SVECTOR rotation;
     MATRIX transform;
+    VECTOR velocity; // Velocity, expressed in fixed-point integers (* ONE)
+    long maxSpeed;
     bool isStatic;
 } GameObject;
 
