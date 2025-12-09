@@ -1,3 +1,7 @@
+#ifndef __OBJECTS_H
+#define __OBJECTS_H
+
+#include <libgte.h>
 
 enum DrawPriority {
     DRP_Neutral,
@@ -47,3 +51,5 @@ typedef struct PlayerObject {
     CameraObject* cameraPtr;
     VECTOR velocity;
 } PlayerObject;
+
+#endif

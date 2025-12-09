@@ -7,39 +7,34 @@
 #include <inline_n.h>
 #include <gtemac.h>
 
+#include "graphics.h"
 #include "objects.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 #define setPosVToGrid(v, _x, _y, _z) \
 	(v)->vx = _x >> 12, (v)->vy = _y >> 12, (v)->vz = _z >> 12
 
-#define OTSIZE 4096
 #define SCREENXRES 640
 #define SCREENYRES 480
 #define FOV SCREENXRES / 2
 #define DISTTHING 512
 
-#define PLAYERHEIGHT 64
-#define PLAYERWIDTHHALF 24
-#define CAMERADISTANCE 192 // 160
+#define PLAYERHEIGHT 48
+#define PLAYERWIDTHHALF 20
+#define CAMERADISTANCE 160 // 160
 
-#define CUBESIZE 96
+#define CUBESIZE 80
 #define CUBEHALF CUBESIZE / 2
-#define FLOORSIZE 256
+#define FLOORSIZE 192
 #define FLOORHALF FLOORSIZE / 2
+#define COLBOXHEIGHT 12
+#define COLBOXHALFWIDTH 32
 
 #define ANALOGUE_MID 127
 #define ANALOGUE_DEADZONE 24
 #define ANALOGUE_MINPOS ANALOGUE_MID + ANALOGUE_DEADZONE
 #define ANALOGUE_MINNEG ANALOGUE_MID - ANALOGUE_DEADZONE
 
-
-// (Double) Buffer struct
-typedef struct DB {
-    DRAWENV draw;
-    DISPENV disp;
-    u_long ot[OTSIZE];
-} DB;
 
 typedef struct Vector2UB {
     u_char x; // Left = neg, Right = pos
@@ -58,10 +53,10 @@ typedef struct GamePad {
 
 
 static SVECTOR colBoxVertices[] = {
-    { -32, -12, -32, 0 }, {  32, -12, -32, 0 },
-    {  32,   0, -32, 0 }, { -32,   0, -32, 0 },
-    { -32, -12,  32, 0 }, {  32, -12,  32, 0 },
-    {  32,   0,  32, 0 }, { -32,   0,  32, 0 },
+    { -COLBOXHALFWIDTH, -COLBOXHEIGHT, -COLBOXHALFWIDTH, 0 }, {  COLBOXHALFWIDTH, -COLBOXHEIGHT, -COLBOXHALFWIDTH, 0 },
+    {  COLBOXHALFWIDTH,  0,            -COLBOXHALFWIDTH, 0 }, { -COLBOXHALFWIDTH,  0,            -COLBOXHALFWIDTH, 0 },
+    { -COLBOXHALFWIDTH, -COLBOXHEIGHT,  COLBOXHALFWIDTH, 0 }, {  COLBOXHALFWIDTH, -COLBOXHEIGHT,  COLBOXHALFWIDTH, 0 },
+    {  COLBOXHALFWIDTH,  0,             COLBOXHALFWIDTH, 0 }, { -COLBOXHALFWIDTH,  0,             COLBOXHALFWIDTH, 0 },
 };
 
 static SVECTOR playerBoxVertices[] = {
@@ -327,8 +322,7 @@ int main(void) {
     // InitHeap() only allows standard malloc(), calloc(), free(), etc. The numbered versions, eg malloc<2 or 3>(), require use of InitHeap<2 or 3>() instead
     InitHeap((u_long*)0x80040000, (u_long)0x20000);
 
-    DB db[2];
-    DB* cdb;
+    InitGraphics();
 
     GamePad pad0 = { 0 };
     GamePad pad1 = { 0 };
@@ -348,46 +342,6 @@ int main(void) {
     // Initialises the controllers with the Kernel library function. Max data buffer size is 34B
     InitPAD(pad0.dataBuffer, 34, pad1.dataBuffer, 34);
     StartPAD();
-
-    // Initialises drawing engine (param = 0 -> complete reset)
-    ResetGraph(0);
-
-    // Initialises the Geometry Transformation Engine (GTE)
-    InitGeom();
-
-    // Set graphics debugging level
-    // 0 = No checking (fastest)
-    // 1 = Checks vertices and drawn primitives
-    // 2 = Same as above but dumps them instead
-    SetGraphDebug(0);
-
-    // Initialises and allows use of debug text
-    FntLoad(960, 256);
-    SetDumpFnt(FntOpen(16, 16, 320, 160, 0, 512));
-
-    // Set drawenv defs
-    SetDefDrawEnv(&db[0].draw, 0, 0, SCREENXRES, SCREENYRES);
-    SetDefDrawEnv(&db[1].draw, 0, 0, SCREENXRES, SCREENYRES);
-    SetDefDispEnv(&db[0].disp, 0, 0, SCREENXRES, SCREENYRES);
-    SetDefDispEnv(&db[1].disp, 0, 0, SCREENXRES, SCREENYRES);
-    
-    /*
-    db[0].disp.isinter = 1;
-    db[0].draw.isbg = 1;
-    db[1].disp.isinter = 1;
-    db[1].draw.isbg = 1;
-    db[0].draw.dtd = 1;
-    db[1].draw.dtd = 1;
-    */
-   
-    gte_SetGeomOffset(SCREENXRES / 2, SCREENYRES / 2);
-    gte_SetGeomScreen(FOV);
-
-    // Actually display the things on screen
-    SetDispMask(1);
-
-    PutDrawEnv(&db[0].draw);
-    PutDispEnv(&db[0].disp);
 
     // Seed rand for same result every time
     srand(0);
@@ -425,9 +379,6 @@ int main(void) {
         false, 0, 0, true, &floorColour
     );
 
-    // Wait for VBLANK to allow controller to initialise (otherwise it starts off with pad->buttons being FFFF for the first frame)
-    VSync(0);
-
     int heightDif;
     bool occupiesSameSpace = false;
 
@@ -436,13 +387,10 @@ int main(void) {
     activePolygons[2] = cube;
     activePolygons[3] = colPlatform;
 
-    short usedBuffer = 0;
+    // Wait for VBLANK to allow controller to initialise (otherwise it starts off with pad->buttons being FFFF for the first frame)
+    VSync(0);
 
     while (1) {
-        // Swap used buffer
-        cdb = (cdb == &db[0]) ? &db[1] : &db[0];
-        usedBuffer = (cdb == &db[0]) ? 1 : 0;
-
         rRot.vx = player->cameraPtr->rotation.vx >> 12;
         rRot.vy = player->cameraPtr->rotation.vy >> 12;
         rRot.vz = player->cameraPtr->rotation.vz >> 12;
@@ -581,44 +529,20 @@ int main(void) {
             cube->obj.rotation.vz += 16;
         }
 
-        // Initialises a linked list for OT / clears (zeroes?) OT for current frame in reverse order (faster)
-        // "When an OT is initialized, the polygons are unlinked, and only then is a re-sort possible. 
-        // Therefore, it is always necessary to initialize an OT prior to executing a sort." - Library Overview, 10-8
-        ClearOTagR(cdb->ot, OTSIZE);
-
-        //FntPrint("Buffer: %d\n", usedBuffer);
-        //FntPrint("B0 Offset: %d %d\n", db[0].draw.ofs[0], db[0].draw.ofs[1]);
-        //FntPrint("B1 Offset: %d %d\n", db[1].draw.ofs[0], db[1].draw.ofs[1]);
-
-        //FntPrint("Status: %x\n", pad0.status);
-        //FntPrint("Type: %x\n", pad0.type);
-        //FntPrint("Buttons: %04x\n", pad0.buttons);
-        //FntPrint("LastInput: %04x\n", lastInput);
-        //FntPrint("Stick L XY: (%02x, %02x)\n", pad0.leftstick.x, pad0.leftstick.y);
-        //FntPrint("Stick R XY: (%02x, %02x)\n\n", pad0.rightstick.x, pad0.rightstick.y);
-
-        /*
-        FntPrint("CM0: %04d, %04d, %04d\n", player->cameraPtr->transform.m[0][0], player->cameraPtr->transform.m[0][1], player->cameraPtr->transform.m[0][2]);
-        FntPrint("CM1: %04d, %04d, %04d\n", player->cameraPtr->transform.m[1][0], player->cameraPtr->transform.m[1][1], player->cameraPtr->transform.m[1][2]);
-        FntPrint("CM2: %04d, %04d, %04d\n", player->cameraPtr->transform.m[2][0], player->cameraPtr->transform.m[2][1], player->cameraPtr->transform.m[2][2]);
-        FntPrint("CT0: %04d, %04d, %04d\n\n", player->cameraPtr->transform.t[0], player->cameraPtr->transform.t[1], player->cameraPtr->transform.t[2]);
-        */
-
-        //FntPrint("PM0: %04d, %04d, %04d\n", player->poly.obj.transform.m[0][0], player->poly.obj.transform.m[0][1], player->poly.obj.transform.m[0][2]);
-        //FntPrint("PM1: %04d, %04d, %04d\n", player->poly.obj.transform.m[1][0], player->poly.obj.transform.m[1][1], player->poly.obj.transform.m[1][2]);
-        //FntPrint("PM2: %04d, %04d, %04d\n", player->poly.obj.transform.m[2][0], player->poly.obj.transform.m[2][1], player->poly.obj.transform.m[2][2]);
-        FntPrint("PV : %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
-        FntPrint("PP : %06d, %06d, %06d\n", player->poly.obj.position.vx, player->poly.obj.position.vy, player->poly.obj.position.vz);
-        FntPrint("PT0: %06d, %06d, %06d\n\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
-        
-        //FntPrint("HDif: %d\n", heightDif);
-        //FntPrint("Space: %d\n", occupiesSameSpace);
-
         for (size_t i = 0; i < 4; i++) {
             UpdatePolyObject(activePolygons[i]);
         }
 
         UpdatePlayerCamera(&rPos, &cPos, &rRot);
+        
+
+        // Swap used buffer. This and the OT reset/population should be moved to DrawFrame eventually when more things, like the player and camera, are moved to global space
+        cdb = (cdb == &db[0]) ? &db[1] : &db[0];
+
+        // Initialises a linked list for OT / clears (zeroes?) OT for current frame in reverse order (faster)
+        // "When an OT is initialized, the polygons are unlinked, and only then is a re-sort possible. 
+        // Therefore, it is always necessary to initialize an OT prior to executing a sort." - Library Overview, 10-8
+        ClearOTagR(cdb->ot, OTSIZE);
 
         // Add polys to OT
         for (size_t i = 0; i < 4; i++) {
@@ -626,20 +550,7 @@ int main(void) {
             AddPolyF(activePolygons[i], cdb->ot);
         }
 
-        // Wait for previous frame to have finished drawing if needed
-        DrawSync(0);
-
-        // Waits for VBLANK (param = 0 -> waits for generated vertical sync)
-        VSync(0);
-
-        // Clear draw buffer with solid colour
-        ClearImage(&cdb->draw.clip, 128, 128, 255);
-
-        // Draw from ordering table
-        DrawOTag(&cdb->ot[OTSIZE - 1]);
-        
-        // Draw debug text set in SetDumpFnt with value -1
-        FntFlush(-1);
+        DrawFrame();
     }
 
     return 0;
