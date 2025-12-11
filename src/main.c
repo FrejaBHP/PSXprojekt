@@ -30,10 +30,16 @@
 #define COLBOXHEIGHT 12
 #define COLBOXHALFWIDTH 32
 
+#define WALLHEIGHT 64
+#define WALLHALF 64
+#define DOORHALF 32
+
 #define ANALOGUE_MID 127
 #define ANALOGUE_DEADZONE 24
 #define ANALOGUE_MINPOS ANALOGUE_MID + ANALOGUE_DEADZONE
 #define ANALOGUE_MINNEG ANALOGUE_MID - ANALOGUE_DEADZONE
+
+#define ACTIVEPOLYGONCOUNT 7
 
 
 typedef struct Vector2UB {
@@ -73,6 +79,20 @@ static SVECTOR cubeVertices[] = {
     { CUBEHALF , CUBEHALF , CUBEHALF , 0 }, { -CUBEHALF, CUBEHALF , CUBEHALF , 0 }
 };
 
+static SVECTOR tWallVertices[] = {
+    { -WALLHALF, -WALLHEIGHT, -WALLHALF, 0 }, {  WALLHALF, -WALLHEIGHT, -WALLHALF, 0 },
+    {  WALLHALF,  0,          -WALLHALF, 0 }, { -WALLHALF,  0,          -WALLHALF, 0 },
+    { -WALLHALF, -WALLHEIGHT,  WALLHALF, 0 }, {  WALLHALF, -WALLHEIGHT,  WALLHALF, 0 },
+    {  WALLHALF,  0,           WALLHALF, 0 }, { -WALLHALF,  0,           WALLHALF, 0 },
+};
+
+static SVECTOR tDoorVertices[] = {
+    { -DOORHALF, -WALLHEIGHT, -DOORHALF, 0 }, {  DOORHALF, -WALLHEIGHT, -DOORHALF, 0 },
+    {  DOORHALF,  0,          -DOORHALF, 0 }, { -DOORHALF,  0,          -DOORHALF, 0 },
+    { -DOORHALF, -WALLHEIGHT,  DOORHALF, 0 }, {  DOORHALF, -WALLHEIGHT,  DOORHALF, 0 },
+    {  DOORHALF,  0,           DOORHALF, 0 }, { -DOORHALF,  0,           DOORHALF, 0 },
+};
+
 static int cubeIndices[] = {
     0, 1, 2, 3, 
     1, 5, 6, 2, 
@@ -94,7 +114,7 @@ static int floorIndices[] = {
 
 PlayerObject* player = NULL;
 
-PolyObject* activePolygons[4];
+PolyObject* activePolygons[ACTIVEPOLYGONCOUNT];
 
 
 // Splits the dataBuffer into the other members for readability and ease of use
@@ -217,6 +237,49 @@ static void AddPolyF(PolyObject* pobj, u_long* ot) {
     }
 }
 
+static void AddPolyFT(PolyObject* pobj, u_long* ot) {
+    long p, otz, flg;
+    int nclip;
+
+    if (pobj->polySides == 4) {
+        POLY_FT4* poly = (POLY_FT4*)pobj->polyPtr;
+
+        for (size_t i = 0; i < (pobj->polyLength * pobj->polySides); i += pobj->polySides, ++poly) {
+            // Non-Average version (RotNclip4) presents layering issues, at least tested on floor against Average cube
+            nclip = RotAverageNclip4(
+                &pobj->verticesPtr[pobj->indicesPtr[i + 0]], &pobj->verticesPtr[pobj->indicesPtr[i + 1]],
+                &pobj->verticesPtr[pobj->indicesPtr[i + 2]], &pobj->verticesPtr[pobj->indicesPtr[i + 3]],
+                (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x3, (long*)&poly->x2, &p, &otz, &flg
+            );
+            
+            if (nclip <= 0 && (otz > 0) && (otz < OTSIZE)) {
+                OrderThing(&otz, pobj->drPrio);
+                AddPrim(&ot[otz], poly);
+            }
+        }
+    }
+    else if (pobj->polySides == 3) {
+        POLY_FT3* poly = (POLY_FT3*)pobj->polyPtr;
+
+        for (size_t i = 0; i < (pobj->polyLength * pobj->polySides); i += pobj->polySides, ++poly) {
+            nclip = RotAverageNclip3(
+                &pobj->verticesPtr[pobj->indicesPtr[i + 0]], &pobj->verticesPtr[pobj->indicesPtr[i + 1]],
+                &pobj->verticesPtr[pobj->indicesPtr[i + 2]],
+                (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x2, &p, &otz, &flg
+            );
+
+            if (nclip <= 0) {
+                continue;
+            }
+
+            if ((otz > 0) && (otz < OTSIZE)) {
+                OrderThing(&otz, pobj->drPrio);
+                AddPrim(&ot[otz], poly);
+            }
+        }
+    }
+}
+
 PolyObject* CreatePolyObjectF4(long posX, long posY, long posZ, short rotX, short rotY, short rotZ, ushort plen, ushort psides, SVECTOR* vertPtr, int* indPtr, enum DrawPriority drprio, bool coll, int collH, int collW, bool fixed, CVECTOR* col) {
     PolyObject* pobj = calloc(1, sizeof(PolyObject));
     POLY_F4* poly = calloc(plen, sizeof(POLY_F4));
@@ -240,6 +303,43 @@ PolyObject* CreatePolyObjectF4(long posX, long posY, long posZ, short rotX, shor
         for (size_t i = 0; i < plen; ++i) {
             SetPolyF4(&poly[i]);
             setRGB0(&poly[i], col[i].r, col[i].g, col[i].b);
+        }
+
+        RotMatrix_gte(&pobj->obj.rotation, &pobj->obj.transform);
+        TransMatrix(&pobj->obj.transform, &pos);
+    }
+
+    return pobj;
+}
+
+PolyObject* CreatePolyObjectFT4(long posX, long posY, long posZ, short rotX, short rotY, short rotZ, ushort plen, ushort psides, SVECTOR* vertPtr, int* indPtr, enum DrawPriority drprio, bool coll, int collH, int collW, bool fixed, TIM_IMAGE* tim) {
+    PolyObject* pobj = calloc(1, sizeof(PolyObject));
+    POLY_FT4* poly = calloc(plen, sizeof(POLY_FT4));
+    VECTOR pos = { posX, posY, posZ };
+    CVECTOR colour = { 128, 128, 128, 0 };
+
+    if (pobj != NULL) {
+        setVector(&pobj->obj.position, pos.vx * ONE, pos.vy * ONE, pos.vz * ONE);
+        setVector(&pobj->obj.rotation, rotX, rotY, rotZ);
+        pobj->polyLength = plen;
+        pobj->polySides = psides;
+        pobj->verticesPtr = vertPtr;
+        pobj->indicesPtr = indPtr;
+        pobj->polyPtr = poly;
+        pobj->drPrio = drprio;
+        pobj->collides = coll;
+        pobj->boxHeight = collH;
+        pobj->boxWidth = collW;
+        pobj->obj.isStatic = fixed;
+        //platform->add = &AddPolyF;
+
+        for (size_t i = 0; i < plen; ++i) {
+            SetPolyFT4(&poly[i]);
+            poly[i].tpage = getTPage(1, 0, tim->prect->x, tim->prect->y);
+            poly[i].clut = getClut(tim->crect->x, tim->crect->y);
+            setRGB0(&poly[i], colour.r, colour.g, colour.b);
+            //setUVWH(&poly[i], tim->prect->x, tim->prect->y, tim->prect->h, tim->prect->w);
+            setUVWH(&poly[i], 0, 0, tim->prect->h, tim->prect->w);
         }
 
         RotMatrix_gte(&pobj->obj.rotation, &pobj->obj.transform);
@@ -320,6 +420,8 @@ int main(void) {
     // It is set to start at 0x80040000 here to give hopefully more than enough space to the previous data
     // Function signature for InitHeap() takes a starting address and a size for the heap in bytes (size needs to be a multiple of 4)
     // InitHeap() only allows standard malloc(), calloc(), free(), etc. The numbered versions, eg malloc<2 or 3>(), require use of InitHeap<2 or 3>() instead
+
+    // Maybe __heap_start could be funny
     InitHeap((u_long*)0x80040000, (u_long)0x20000);
 
     InitGraphics();
@@ -369,7 +471,7 @@ int main(void) {
         DRP_Neutral, 
         false, 0, 0, false, col
     );
-
+    /*
     CVECTOR floorColour = { .r = 0, .g = 128, .b = 0 };
     PolyObject* floor = CreatePolyObjectF4(
         0, 0, DISTTHING, 
@@ -378,6 +480,41 @@ int main(void) {
         DRP_Low, 
         false, 0, 0, true, &floorColour
     );
+    */
+
+    PolyObject* floor = CreatePolyObjectFT4(
+        0, 0, DISTTHING, 
+        ONE / 2, 0, 0,
+        1, 4, floorVertices, floorIndices,
+        DRP_Low, 
+        false, 0, 0, true, &cobble_tim
+    );
+
+
+    PolyObject* tWallLeft = CreatePolyObjectFT4(
+        192, 0, 0, 
+        0, 0, 0,
+        6, 4, tWallVertices, cubeIndices,
+        DRP_Neutral, 
+        false, 0, 0, true, &woodPanel_tim
+    );
+
+    PolyObject* tDoor = CreatePolyObjectFT4(
+        192 + WALLHALF * 2, 0, 0, 
+        0, 0, 0,
+        6, 4, tDoorVertices, cubeIndices,
+        DRP_Neutral, 
+        false, 0, 0, true, &woodPanel_tim
+    );
+
+    PolyObject* tWallRight = CreatePolyObjectFT4(
+        192 + WALLHALF * 2 + DOORHALF * 2, 0, 0, 
+        0, 0, 0,
+        6, 4, tWallVertices, cubeIndices,
+        DRP_Neutral, 
+        false, 0, 0, true, &woodPanel_tim
+    );
+    
 
     int heightDif;
     bool occupiesSameSpace = false;
@@ -386,6 +523,9 @@ int main(void) {
     activePolygons[1] = floor;
     activePolygons[2] = cube;
     activePolygons[3] = colPlatform;
+    activePolygons[4] = tWallLeft;
+    activePolygons[5] = tWallRight;
+    activePolygons[6] = tDoor;
 
     // Wait for VBLANK to allow controller to initialise (otherwise it starts off with pad->buttons being FFFF for the first frame)
     VSync(0);
@@ -529,7 +669,7 @@ int main(void) {
             cube->obj.rotation.vz += 16;
         }
 
-        for (size_t i = 0; i < 4; i++) {
+        for (size_t i = 0; i < ACTIVEPOLYGONCOUNT; i++) {
             UpdatePolyObject(activePolygons[i]);
         }
 
@@ -545,9 +685,14 @@ int main(void) {
         ClearOTagR(cdb->ot, OTSIZE);
 
         // Add polys to OT
-        for (size_t i = 0; i < 4; i++) {
+        for (size_t i = 0; i < ACTIVEPOLYGONCOUNT - 3; i++) {
             CameraTransformPoly(player->cameraPtr, activePolygons[i]);
             AddPolyF(activePolygons[i], cdb->ot);
+        }
+
+        for (size_t i = ACTIVEPOLYGONCOUNT - 3; i < ACTIVEPOLYGONCOUNT; i++) {
+            CameraTransformPoly(player->cameraPtr, activePolygons[i]);
+            AddPolyFT(activePolygons[i], cdb->ot);
         }
 
         DrawFrame();
