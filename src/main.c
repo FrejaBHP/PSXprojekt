@@ -80,10 +80,10 @@ static SVECTOR cubeVertices[] = {
 };
 
 static SVECTOR tWallVertices[] = {
-    { -WALLHALF, -WALLHEIGHT, -WALLHALF, 0 }, {  WALLHALF, -WALLHEIGHT, -WALLHALF, 0 },
-    {  WALLHALF,  0,          -WALLHALF, 0 }, { -WALLHALF,  0,          -WALLHALF, 0 },
-    { -WALLHALF, -WALLHEIGHT,  WALLHALF, 0 }, {  WALLHALF, -WALLHEIGHT,  WALLHALF, 0 },
-    {  WALLHALF,  0,           WALLHALF, 0 }, { -WALLHALF,  0,           WALLHALF, 0 },
+    { -WALLHALF, -WALLHEIGHT, -DOORHALF, 0 }, {  WALLHALF, -WALLHEIGHT, -DOORHALF, 0 },
+    {  WALLHALF,  0,          -DOORHALF, 0 }, { -WALLHALF,  0,          -DOORHALF, 0 },
+    { -WALLHALF, -WALLHEIGHT,  DOORHALF, 0 }, {  WALLHALF, -WALLHEIGHT,  DOORHALF, 0 },
+    {  WALLHALF,  0,           DOORHALF, 0 }, { -WALLHALF,  0,           DOORHALF, 0 },
 };
 
 static SVECTOR tDoorVertices[] = {
@@ -116,6 +116,9 @@ PlayerObject* player = NULL;
 
 PolyObject* activePolygons[ACTIVEPOLYGONCOUNT];
 
+//DR_TPAGE woodPanelPage = { 0 };
+//DR_TPAGE woodDoorPage = { 0 };
+//DR_TPAGE cobblePage = { 0 };
 
 // Splits the dataBuffer into the other members for readability and ease of use
 void UpdatePad(GamePad* pad) {
@@ -237,9 +240,12 @@ static void AddPolyF(PolyObject* pobj, u_long* ot) {
     }
 }
 
+//static void AddPolyFT(PolyObject* pobj, DR_TPAGE* tpage, u_long* ot) {
 static void AddPolyFT(PolyObject* pobj, u_long* ot) {
     long p, otz, flg;
     int nclip;
+
+    //long highestOTZ = 0;
 
     if (pobj->polySides == 4) {
         POLY_FT4* poly = (POLY_FT4*)pobj->polyPtr;
@@ -251,12 +257,20 @@ static void AddPolyFT(PolyObject* pobj, u_long* ot) {
                 &pobj->verticesPtr[pobj->indicesPtr[i + 2]], &pobj->verticesPtr[pobj->indicesPtr[i + 3]],
                 (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x3, (long*)&poly->x2, &p, &otz, &flg
             );
+
+            if (nclip <= 0) {
+                continue;
+            }
+
+            //setUVWH(poly, 0, 0, 64, 64);
             
-            if (nclip <= 0 && (otz > 0) && (otz < OTSIZE)) {
+            if ((otz > 0) && (otz < OTSIZE)) {
                 OrderThing(&otz, pobj->drPrio);
                 AddPrim(&ot[otz], poly);
             }
         }
+
+        //AddPrim(&ot[highestOTZ + 1], tpage);
     }
     else if (pobj->polySides == 3) {
         POLY_FT3* poly = (POLY_FT3*)pobj->polyPtr;
@@ -312,6 +326,7 @@ PolyObject* CreatePolyObjectF4(long posX, long posY, long posZ, short rotX, shor
     return pobj;
 }
 
+// Used for creating a PolyObject out of a number of POLY_FT4 with the same textures
 PolyObject* CreatePolyObjectFT4(long posX, long posY, long posZ, short rotX, short rotY, short rotZ, ushort plen, ushort psides, SVECTOR* vertPtr, int* indPtr, enum DrawPriority drprio, bool coll, int collH, int collW, bool fixed, TIM_IMAGE* tim) {
     PolyObject* pobj = calloc(1, sizeof(PolyObject));
     POLY_FT4* poly = calloc(plen, sizeof(POLY_FT4));
@@ -335,7 +350,7 @@ PolyObject* CreatePolyObjectFT4(long posX, long posY, long posZ, short rotX, sho
 
         for (size_t i = 0; i < plen; ++i) {
             SetPolyFT4(&poly[i]);
-            poly[i].tpage = getTPage(1, 0, tim->prect->x, tim->prect->y);
+            poly[i].tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y);
             poly[i].clut = getClut(tim->crect->x, tim->crect->y);
             setRGB0(&poly[i], colour.r, colour.g, colour.b);
             //setUVWH(&poly[i], tim->prect->x, tim->prect->y, tim->prect->h, tim->prect->w);
@@ -471,16 +486,7 @@ int main(void) {
         DRP_Neutral, 
         false, 0, 0, false, col
     );
-    /*
-    CVECTOR floorColour = { .r = 0, .g = 128, .b = 0 };
-    PolyObject* floor = CreatePolyObjectF4(
-        0, 0, DISTTHING, 
-        ONE / 2, 0, 0,
-        1, 4, floorVertices, floorIndices,
-        DRP_Low, 
-        false, 0, 0, true, &floorColour
-    );
-    */
+
 
     PolyObject* floor = CreatePolyObjectFT4(
         0, 0, DISTTHING, 
@@ -489,7 +495,6 @@ int main(void) {
         DRP_Low, 
         false, 0, 0, true, &cobble_tim
     );
-
 
     PolyObject* tWallLeft = CreatePolyObjectFT4(
         192, 0, 0, 
@@ -504,11 +509,11 @@ int main(void) {
         0, 0, 0,
         6, 4, tDoorVertices, cubeIndices,
         DRP_Neutral, 
-        false, 0, 0, true, &woodPanel_tim
+        false, 0, 0, true, &woodDoor_tim
     );
 
     PolyObject* tWallRight = CreatePolyObjectFT4(
-        192 + WALLHALF * 2 + DOORHALF * 2, 0, 0, 
+        192 + WALLHALF * 3 + DOORHALF * 2, 0, 0, 
         0, 0, 0,
         6, 4, tWallVertices, cubeIndices,
         DRP_Neutral, 
@@ -519,10 +524,20 @@ int main(void) {
     int heightDif;
     bool occupiesSameSpace = false;
 
+    /*
+    POLY_FT4* tempPolyPtr = (POLY_FT4*)floor->polyPtr;
+    setDrawTPage(&cobblePage, 0, 0, tempPolyPtr->tpage);
+    tempPolyPtr = (POLY_FT4*)tWallLeft->polyPtr;
+    setDrawTPage(&woodPanelPage, 0, 0, tempPolyPtr->tpage);
+    tempPolyPtr = (POLY_FT4*)tDoor->polyPtr;
+    setDrawTPage(&woodDoorPage, 0, 0, tempPolyPtr->tpage);
+    */
+
     activePolygons[0] = &player->poly;
-    activePolygons[1] = floor;
-    activePolygons[2] = cube;
-    activePolygons[3] = colPlatform;
+    activePolygons[1] = cube;
+    activePolygons[2] = colPlatform;
+
+    activePolygons[3] = floor;
     activePolygons[4] = tWallLeft;
     activePolygons[5] = tWallRight;
     activePolygons[6] = tDoor;
@@ -685,12 +700,12 @@ int main(void) {
         ClearOTagR(cdb->ot, OTSIZE);
 
         // Add polys to OT
-        for (size_t i = 0; i < ACTIVEPOLYGONCOUNT - 3; i++) {
+        for (size_t i = 0; i < ACTIVEPOLYGONCOUNT - 4; i++) {
             CameraTransformPoly(player->cameraPtr, activePolygons[i]);
             AddPolyF(activePolygons[i], cdb->ot);
         }
-
-        for (size_t i = ACTIVEPOLYGONCOUNT - 3; i < ACTIVEPOLYGONCOUNT; i++) {
+        
+        for (size_t i = ACTIVEPOLYGONCOUNT - 4; i < ACTIVEPOLYGONCOUNT; i++) {
             CameraTransformPoly(player->cameraPtr, activePolygons[i]);
             AddPolyFT(activePolygons[i], cdb->ot);
         }

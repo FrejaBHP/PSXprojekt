@@ -37,10 +37,6 @@ void InitGraphics() {
     // 2 = Same as above but dumps them instead
     SetGraphDebug(0);
 
-    // Initialises and allows use of debug text
-    FntLoad(960, 256);
-    SetDumpFnt(FntOpen(16, 16, 320, 160, 0, 512));
-
     // Set drawenv defs
     /*
     SetDefDrawEnv(&db[0].draw, 0, 8, RENDERX, 224);
@@ -66,6 +62,10 @@ void InitGraphics() {
 
     setRECT(&clearRect, 0, 0, 1024, 512);
     ClearImage(&clearRect, 0, 0, 0);
+
+    // Initialises and allows use of debug text
+    FntLoad(960, 256);
+    SetDumpFnt(FntOpen(8, 8, 256, 192, 0, 512));
    
     gte_SetGeomOffset(RENDERX / 2, RENDERY / 2);
     //gte_SetGeomScreen(341);
