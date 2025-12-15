@@ -2,6 +2,7 @@
 #define __OBJECTS_H
 
 #include <libgte.h>
+#include <libgpu.h>
 
 enum DrawPriority {
     DRP_Neutral,
@@ -45,6 +46,13 @@ typedef struct PolyObject {
 
     //void (*add)(struct PolyObject* self, u_long* ot);
 } PolyObject;
+
+typedef struct TexturedPolyObject {
+    PolyObject polyObj;
+    TIM_IMAGE* tim;
+    RECT trect;
+    bool repeating;
+} TexturedPolyObject;
 
 typedef struct PlayerObject {
     PolyObject poly;

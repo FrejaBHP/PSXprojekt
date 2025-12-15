@@ -2,6 +2,9 @@
 
 DB db[2] = { 0 };
 DB* cdb = 0;
+DR_MODE* drModeList = 0;
+u_char curdrModeIndex = 0;
+u_char curTPage = 0;
 
 TIM_IMAGE woodPanel_tim;
 TIM_IMAGE woodDoor_tim;
@@ -124,6 +127,7 @@ void DrawFrame() {
 
     // Draw from ordering table
     DrawOTag(&cdb->ot[OTSIZE - 1]);
+    curdrModeIndex = 0;
     
     // Draw debug text set in SetDumpFnt with value -1
     FntFlush(-1);

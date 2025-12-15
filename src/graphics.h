@@ -19,6 +19,7 @@ typedef struct {
 */
 
 #define OTSIZE 2048
+#define SPECPRIMSSIZE 256
 #define RENDERX 320 // 512
 #define RENDERY 240
 
@@ -42,6 +43,9 @@ typedef struct DB {
 
 extern DB db[2];
 extern DB* cdb;
+extern DR_MODE* drModeList;
+extern u_char curdrModeIndex;
+extern u_char curTPage;
 
 void LoadTexture(u_long* tim, TIM_IMAGE* tparam);
 void InitGraphics();
