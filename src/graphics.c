@@ -3,6 +3,8 @@
 DB db[2] = { 0 };
 DB* cdb = 0;
 DR_MODE* drModeList = 0;
+//DR_MODE resetDRMODE;
+//RECT resetRect = { 0, 0, 0, 0 };
 u_char curdrModeIndex = 0;
 u_char curTPage = 0;
 
@@ -81,6 +83,8 @@ void InitGraphics() {
 
     // Actually display the things on screen
     SetDispMask(1);
+
+    //setDrawMode(&resetDRMODE, 0, 1, 0, &resetRect);
 
     LoadTexture(woodPanel_start, &woodPanel_tim);
     LoadTexture(woodDoor_start, &woodDoor_tim);

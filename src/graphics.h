@@ -44,6 +44,8 @@ typedef struct DB {
 extern DB db[2];
 extern DB* cdb;
 extern DR_MODE* drModeList;
+//extern DR_MODE resetDRMODE;
+//extern RECT resetRect;
 extern u_char curdrModeIndex;
 extern u_char curTPage;
 

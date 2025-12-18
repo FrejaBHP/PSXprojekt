@@ -54,6 +54,36 @@ typedef struct TexturedPolyObject {
     bool repeating;
 } TexturedPolyObject;
 
+typedef struct TestTileMultiPoly {
+    GameObject obj; // Compatibility
+    MATRIX renderTransform; // Holdover
+
+    u_char repeats;
+    u_char rx;
+    u_char ry;
+    u_char rz;
+    
+    u_char width;
+    u_char height;
+    u_char depth;
+
+    SVECTOR* verticesPtr;
+    int* indicesPtr;
+    POLY_FT4* polyPtr;
+
+    u_char subdivs;
+    ushort totalPolys;
+
+    TIM_IMAGE* tim;
+    //u_char u0;
+    //u_char v0;
+    //u_char uw;
+    //u_char vh;
+
+    bool reverseOrder;
+
+} TestTileMultiPoly;
+
 typedef struct PlayerObject {
     PolyObject poly;
     CameraObject* cameraPtr;
