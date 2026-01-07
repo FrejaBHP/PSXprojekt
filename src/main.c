@@ -44,6 +44,7 @@
 #define ACTIVEPOLYGONCOUNT 3
 #define ACTIVETEXPOLYGONCOUNT 5
 #define ACTIVETILEDTEXPOLYGONCOUNT 1
+#define ACTIVECOLBOXCOUNT 6
 
 
 typedef struct Vector2UB {
@@ -83,6 +84,34 @@ static SVECTOR cubeVertices[] = {
     { CUBEHALF , CUBEHALF , CUBEHALF , 0 }, { -CUBEHALF, CUBEHALF , CUBEHALF , 0 }
 };
 
+static SVECTOR tinyHouseVertices[] = {
+    { 0, -WALLHEIGHT, 0, 0 },               { WALLHALF, -WALLHEIGHT, 0, 0 },
+    { WALLHALF,  0,  0, 0 },                { 0,  0,          0, 0 },
+    { 0, -WALLHEIGHT,  WALLHALF * 2, 0 },   { WALLHALF, -WALLHEIGHT,  WALLHALF * 2, 0 },
+    { WALLHALF,  0,  WALLHALF * 2, 0 },     { 0,  0,           WALLHALF * 2, 0 },
+};
+
+static SVECTOR tinyBoxVertices[] = {
+    { 0, -DOORHALF, 0, 0 },               { DOORHALF, -DOORHALF, 0, 0 },
+    { DOORHALF,  0,  0, 0 },                { 0,  0,          0, 0 },
+    { 0, -DOORHALF,  DOORHALF, 0 },   { DOORHALF, -DOORHALF,  DOORHALF, 0 },
+    { DOORHALF,  0,  DOORHALF, 0 },     { 0,  0,           DOORHALF, 0 },
+};
+
+static SVECTOR boxVertices[] = {
+    { 0, -WALLHALF, 0, 0 },               { WALLHALF, -WALLHALF, 0, 0 },
+    { WALLHALF,  0,  0, 0 },                { 0,  0,          0, 0 },
+    { 0, -WALLHALF,  WALLHALF, 0 },   { WALLHALF, -WALLHALF,  WALLHALF, 0 },
+    { WALLHALF,  0,  WALLHALF, 0 },     { 0,  0,           WALLHALF, 0 },
+};
+
+static SVECTOR platformVertices[] = {
+    { 0, -16, 0, 0 }, { WALLHALF, -16, 0, 0 },
+    { WALLHALF, 0,  0, 0 }, { 0, 0, 0, 0 },
+    { 0, -16,  WALLHALF, 0 }, { WALLHALF, -16,  WALLHALF, 0 },
+    { WALLHALF, 0,  WALLHALF, 0 }, { 0, 0, WALLHALF, 0 },
+};
+
 /*
 static SVECTOR tWallVertices[] = {
     { -WALLHALF, -WALLHEIGHT, -DOORHALF, 0 }, {  WALLHALF, -WALLHEIGHT, -DOORHALF, 0 },
@@ -103,7 +132,7 @@ static SVECTOR tWallVertices[] = {
     { 0, -WALLHEIGHT, 0, 0 },               { WALLHALF * 2, -WALLHEIGHT, 0, 0 },
     { WALLHALF * 2,  0,  0, 0 },    { 0,  0,          0, 0 },
     { 0, -WALLHEIGHT,  WALLHALF, 0 },       { WALLHALF * 2, -WALLHEIGHT,  WALLHALF, 0 },
-    { WALLHALF * 2,  0,  WALLHALF, 0 },     { 0,  0,           WALLHALF, 0 },
+    { WALLHALF * 2,  0,  WALLHALF, 0 },     { 0,  0,           WALLHALF, 0 }
 };
 
 static SVECTOR tDoorVertices[] = {
@@ -113,16 +142,16 @@ static SVECTOR tDoorVertices[] = {
     { WALLHALF,  0,           WALLHALF, 0 }, { 0,  0,           WALLHALF, 0 },
 };
 
-static int cubeIndices[] = {
-    0, 1, 2, 3, 
-    1, 5, 6, 2, 
-    5, 4, 7, 6, 
-    4, 0, 3, 7, 
-    4, 5, 1, 0, 
-    6, 7, 3, 2
+static long cubeIndices[] = {
+    0, 1, 2, 3, // Back?
+    1, 5, 6, 2, // Right?
+    5, 4, 7, 6, // Front?
+    4, 0, 3, 7, // Left?
+    4, 5, 1, 0, // Top
+    6, 7, 3, 2  // Bottom
 };
 
-static int tubeIndices[] = {
+static long tubeIndices[] = {
     0, 1, 2, 3, 
     1, 5, 6, 2, 
     5, 4, 7, 6, 
@@ -144,11 +173,11 @@ static SVECTOR tiledPanelVertices[] = {
     { WALLHALF, 0, 0, 0 }, { 0, 0, 0, 0 }
 };
 
-static int floorIndices[] = {
+static long floorIndices[] = {
     0, 3, 2, 1
 };
 
-static int tileWallIndices[] = {
+static long tileWallIndices[] = {
     0, 1, 2, 3
 };
 
@@ -158,6 +187,8 @@ PlayerObject* player = NULL;
 PolyObject* activePolygons[ACTIVEPOLYGONCOUNT];
 TexturedPolyObject* activeTexPolygons[ACTIVETEXPOLYGONCOUNT];
 TexturedPolyObject* activeTiledTexPolygons[ACTIVETILEDTEXPOLYGONCOUNT];
+
+StaticCollisionPolyBox* activeCollisionPolyBoxes[ACTIVECOLBOXCOUNT];
 
 // Splits the dataBuffer into the other members for readability and ease of use
 void UpdatePad(GamePad* pad) {
@@ -201,7 +232,7 @@ long GetVectorPlaneLength64(VECTOR* vec) {
     return cC;
 }
 
-PolyObject* CreatePolyObjectF4(long posX, long posY, long posZ, short rotX, short rotY, short rotZ, ushort plen, ushort psides, SVECTOR* vertPtr, int* indPtr, enum DrawPriority drprio, bool coll, int collH, int collW, bool fixed, CVECTOR* col) {
+PolyObject* CreatePolyObjectF4(long posX, long posY, long posZ, short rotX, short rotY, short rotZ, ushort plen, ushort psides, SVECTOR* vertPtr, long* indPtr, enum DrawPriority drprio, bool coll, int collH, int collW, bool fixed, CVECTOR* col) {
     PolyObject* pobj = calloc(1, sizeof(PolyObject));
     POLY_F4* poly = calloc(plen, sizeof(POLY_F4));
     VECTOR pos = { posX, posY, posZ };
@@ -233,11 +264,48 @@ PolyObject* CreatePolyObjectF4(long posX, long posY, long posZ, short rotX, shor
     return pobj;
 }
 
+POLY_FT4* CreateTexturedPolygon4(TIM_IMAGE* tim, u_char u0, u_char v0, u_char u1, u_char v1) {
+    POLY_FT4* poly = calloc(1, sizeof(POLY_FT4));
+    SetPolyFT4(poly);
+
+    poly->tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y);
+    poly->clut = getClut(tim->crect->x, tim->crect->y);
+    setRGB0(poly, 128, 128, 128);
+    setUVWH(poly, u0, v0, u1, v1);
+
+    return poly;
+}
+
+StaticCollisionPolyBox* CreateCollisionPolyBox(
+    long posX, long posY, long posZ,
+    short rotX, short rotY, short rotZ,
+    SVECTOR* vertPtr) {
+
+    StaticCollisionPolyBox* scpolybox = malloc(sizeof(StaticCollisionPolyBox));
+    VECTOR pos = { posX, posY, posZ };
+
+    setVector(&scpolybox->position, pos.vx * ONE, pos.vy * ONE, pos.vz * ONE);
+    setVector(&scpolybox->rotation, rotX, rotY, rotZ);
+    scpolybox->vertices = vertPtr;
+    scpolybox->colBox.dimensions = scpolybox->vertices[5];
+    scpolybox->colBox.dimensions.vy = -scpolybox->colBox.dimensions.vy;
+    scpolybox->indices = cubeIndices;
+
+    for (size_t i = 0; i < 6; i++) {
+        scpolybox->polys[i] = NULL;
+    }
+
+    RotMatrix_gte(&scpolybox->rotation, &scpolybox->transform);
+    TransMatrix(&scpolybox->transform, &pos);
+
+    return scpolybox;
+}
+
 // Used for creating a PolyObject out of a number of POLY_FT4 with the same textures
 TexturedPolyObject* CreateTexturedPolyObjectFT4(
     long posX, long posY, long posZ, 
     short rotX, short rotY, short rotZ, 
-    ushort plen, ushort psides, SVECTOR* vertPtr, int* indPtr, 
+    ushort plen, ushort psides, SVECTOR* vertPtr, long* indPtr, 
     enum DrawPriority drprio, 
     bool coll, int collH, int collW, bool fixed, 
     TIM_IMAGE* tim, 
@@ -424,8 +492,8 @@ void CreatePlayer(CVECTOR* col) {
         player->poly.polyPtr = pplayer;
         player->poly.drPrio = DRP_Neutral;
         player->poly.collides = false;
-        player->poly.boxHeight = 64;
-        player->poly.boxWidth = 48;
+        player->poly.boxHeight = PLAYERHEIGHT;
+        player->poly.boxWidth = PLAYERWIDTHHALF * 2;
         player->poly.obj.maxSpeed = 5 * ONE;
         player->poly.obj.isStatic = false;
         //player->poly.add = &AddPolyF;
@@ -448,6 +516,7 @@ void CreatePlayer(CVECTOR* col) {
 static void UpdatePolyObject(PolyObject* pobj) {
     // If object can move in any way, apply velocity
     if (!pobj->obj.isStatic) {
+        /*
         if (GetVectorPlaneLength64(&pobj->obj.velocity) > (pobj->obj.maxSpeed << 6)) {
             VECTOR appliedVelocity = { 0 };
 
@@ -460,6 +529,7 @@ static void UpdatePolyObject(PolyObject* pobj) {
         else {
             addVector(&pobj->obj.position, &pobj->obj.velocity);
         }
+        */
         
         VECTOR gridPos = { pobj->obj.position.vx >> 12, pobj->obj.position.vy >> 12, pobj->obj.position.vz >> 12 };
         RotMatrix_gte(&pobj->obj.rotation, &pobj->obj.transform);
@@ -481,6 +551,14 @@ static void CameraTransformPolyEx(CameraObject* camera, TestTileMultiPoly* tmp) 
         
     gte_SetRotMatrix(&tmp->renderTransform);
     gte_SetTransMatrix(&tmp->renderTransform);
+}
+
+static void CameraTransformStatic(CameraObject* camera, StaticCollisionPolyBox* scpolybox) {
+    // Could get away with replacing this with a global instead of storing the render transform in every object
+    gte_CompMatrix(&camera->transform, &scpolybox->transform, &globalRenderTransform);
+        
+    gte_SetRotMatrix(&globalRenderTransform);
+    gte_SetTransMatrix(&globalRenderTransform);
 }
 
 static void AddPolyF(PolyObject* pobj, u_long* ot) {
@@ -710,6 +788,32 @@ static void AddMultiPoly(TestTileMultiPoly* tmp, u_long* ot) {
     }
 }
 
+static void AddStaticPolyBox(StaticCollisionPolyBox* scpolybox, u_long* ot) {
+    long p, otz, flg;
+    int nclip;
+
+    for (size_t i = 0; i < 6; ++i) {
+        if (scpolybox->polys[i] == NULL) {
+            continue;
+        }
+
+        // Non-Average version (RotNclip4) presents layering issues, at least tested on floor against Average cube
+        nclip = RotAverageNclip4(
+            &scpolybox->vertices[scpolybox->indices[(4 * i) + 0]], &scpolybox->vertices[scpolybox->indices[(4 * i) + 1]],
+            &scpolybox->vertices[scpolybox->indices[(4 * i) + 2]], &scpolybox->vertices[scpolybox->indices[(4 * i) + 3]],
+            (long*)&scpolybox->polys[i]->x0, (long*)&scpolybox->polys[i]->x1, (long*)&scpolybox->polys[i]->x3, (long*)&scpolybox->polys[i]->x2, &p, &otz, &flg
+        );
+
+        if (nclip <= 0) {
+            continue;
+        }
+        
+        if ((otz > 0) && (otz < OTSIZE)) {
+            AddPrim(&ot[otz], scpolybox->polys[i]);
+        }
+    }
+}
+
 static void UpdatePlayerCamera(VECTOR* tPos, VECTOR* cPos, SVECTOR* cRot) {
     RotMatrix(cRot, &player->cameraPtr->transform);
 
@@ -781,6 +885,7 @@ int main(void) {
 
     CreatePlayer(col);
     bool isPlayerOnFloor = true;
+    bool isPlayerOnCollision = false;
 
     PolyObject* colPlatform = CreatePolyObjectF4(
         0, -24, DISTTHING / 2, 
@@ -885,9 +990,9 @@ int main(void) {
 
 
     TestTileMultiPoly* testPoly = CreateTestMultiPoly(
-        -192, 0, 96,
+        -320, 0, 96,
         0, 0, 0,
-        4, 4, false,
+        6, 2, false,
         1, 0, 0,
         64, 128, 0,
         &woodPanel_tim, 
@@ -895,9 +1000,9 @@ int main(void) {
     );
 
     TestTileMultiPoly* testPolyFloor = CreateTestMultiPoly(
-        -192, 0, -32,
+        -320, 0, -32,
         0, 0, 0,
-        1, 4, false,
+        3, 2, false,
         1, 0, 0,
         128, 0, 128,
         &cobble_tim, 
@@ -919,6 +1024,104 @@ int main(void) {
     activeTexPolygons[4] = longFloor;
 
     activeTiledTexPolygons[0] = tiledWall;
+
+
+    // Should really do something about these "constructors". They're really long
+
+    StaticCollisionPolyBox* testPolyBox = CreateCollisionPolyBox(
+        640, 0, -64,
+        0, 0, 0,
+        tinyHouseVertices
+    );
+
+    testPolyBox->polys[0] = CreateTexturedPolygon4(&woodDoor_tim, 63, 0, 64, 128);
+    testPolyBox->polys[1] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
+    testPolyBox->polys[2] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
+    testPolyBox->polys[3] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
+    testPolyBox->polys[4] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
+    testPolyBox->polys[5] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
+
+    activeCollisionPolyBoxes[0] = testPolyBox;
+
+
+    StaticCollisionPolyBox* testPolyBox2 = CreateCollisionPolyBox(
+        544, 0, -64,
+        0, 0, 0,
+        tinyBoxVertices
+    );
+
+    testPolyBox2->polys[0] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox2->polys[1] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox2->polys[2] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox2->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox2->polys[4] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox2->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+
+    activeCollisionPolyBoxes[1] = testPolyBox2;
+
+
+    StaticCollisionPolyBox* testPolyBox3 = CreateCollisionPolyBox(
+        576, 0, -64,
+        0, 0, 0,
+        boxVertices
+    );
+
+    testPolyBox3->polys[0] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox3->polys[1] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox3->polys[2] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox3->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox3->polys[4] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox3->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+
+    activeCollisionPolyBoxes[2] = testPolyBox3;
+
+
+    StaticCollisionPolyBox* testPolyBox4 = CreateCollisionPolyBox(
+        784, -112, -64,
+        0, 0, 0,
+        platformVertices
+    );
+
+    testPolyBox4->polys[0] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox4->polys[1] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox4->polys[2] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox4->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox4->polys[4] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox4->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+
+    activeCollisionPolyBoxes[3] = testPolyBox4;
+
+
+    StaticCollisionPolyBox* testPolyBox5 = CreateCollisionPolyBox(
+        784, -72, -96,
+        0, 0, 0,
+        platformVertices
+    );
+
+    testPolyBox5->polys[0] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox5->polys[1] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox5->polys[2] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox5->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox5->polys[4] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox5->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+
+    activeCollisionPolyBoxes[4] = testPolyBox5;
+
+
+    StaticCollisionPolyBox* testPolyBox6 = CreateCollisionPolyBox(
+        784, -32, -128,
+        0, 0, 0,
+        platformVertices
+    );
+
+    testPolyBox6->polys[0] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox6->polys[1] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox6->polys[2] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox6->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox6->polys[4] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox6->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+
+    activeCollisionPolyBoxes[5] = testPolyBox6;
 
     // Wait for VBLANK to allow controller to initialise (otherwise it starts off with pad->buttons being FFFF for the first frame)
     VSync(0);
@@ -1011,10 +1214,154 @@ int main(void) {
             }
 
 
+            // In fixed-point units, aka 4096 = 1
+            VECTOR playerSimulatedPosition = player->poly.obj.position;
+            addVector(&playerSimulatedPosition, &player->poly.obj.velocity);
+            VECTOR playerSimulatedPositionFinal = playerSimulatedPosition;
+
+            isPlayerOnCollision = false;
+            bool playerHasStepped = false;
+
+            // Unsure if these should be recalculated per object, but probably not
+            VECTOR playerSimulatedPositionGridMins = { 
+                (playerSimulatedPosition.vx >> 12) - player->poly.boxWidth / 2,
+                (playerSimulatedPosition.vy >> 12),
+                (playerSimulatedPosition.vz >> 12) - player->poly.boxWidth / 2
+            };
+
+            VECTOR playerSimulatedPositionGridMaxs = { 
+                (playerSimulatedPosition.vx >> 12) + player->poly.boxWidth / 2,
+                (playerSimulatedPosition.vy >> 12) - player->poly.boxHeight,
+                (playerSimulatedPosition.vz >> 12) + player->poly.boxWidth / 2
+            };
+
+            for (size_t i = 0; i < ACTIVECOLBOXCOUNT; i++) {
+                bool intersectsX = false;
+                bool intersectsY = false;
+                bool intersectsZ = false;
+                bool stepping = false;
+
+                if (playerSimulatedPositionGridMins.vx < activeCollisionPolyBoxes[i]->transform.t[0] + activeCollisionPolyBoxes[i]->colBox.dimensions.vx
+                    && (playerSimulatedPositionGridMaxs.vx > activeCollisionPolyBoxes[i]->transform.t[0])) {
+                    
+                    intersectsX = true;
+                }
+
+                if (playerSimulatedPositionGridMins.vy > activeCollisionPolyBoxes[i]->transform.t[1] - activeCollisionPolyBoxes[i]->colBox.dimensions.vy
+                    && (playerSimulatedPositionGridMaxs.vy < activeCollisionPolyBoxes[i]->transform.t[1])) {
+                    
+                    intersectsY = true;
+                }
+
+                if (playerSimulatedPositionGridMins.vz < activeCollisionPolyBoxes[i]->transform.t[2] + activeCollisionPolyBoxes[i]->colBox.dimensions.vz 
+                    && (playerSimulatedPositionGridMaxs.vz > activeCollisionPolyBoxes[i]->transform.t[2])) {
+                    
+                    intersectsZ = true;
+                }
+
+                //FntPrint("%d %d %d\n", intersectsX, intersectsY, intersectsZ);
+
+                if (intersectsX && intersectsZ) {
+                    // If actual collision
+                    if (intersectsY) {
+                        if (player->poly.obj.velocity.vy == 0 && isPlayerOnFloor && !playerHasStepped) {
+                            long stepheight = playerSimulatedPositionGridMins.vy - activeCollisionPolyBoxes[i]->transform.t[1] + activeCollisionPolyBoxes[i]->colBox.dimensions.vy;
+                            //FntPrint("StepHeight: %03d\n", stepheight);
+
+                            if (stepheight <= 32 && stepheight > 0) {
+                                stepping = true;
+                                playerHasStepped = true;
+                                playerSimulatedPositionFinal.vy = activeCollisionPolyBoxes[i]->position.vy - (activeCollisionPolyBoxes[i]->colBox.dimensions.vy * ONE);
+                                isPlayerOnCollision = true;
+                            }
+                        }
+
+                        if (!stepping) {
+                            long bleed[3]; // X Y Z
+
+                            long bleedXPos = abs((playerSimulatedPosition.vx + ((player->poly.boxWidth / 2) * ONE)) - activeCollisionPolyBoxes[i]->position.vx);
+                            long bleedXNeg = abs((playerSimulatedPosition.vx - ((player->poly.boxWidth / 2) * ONE)) - (activeCollisionPolyBoxes[i]->position.vx + (activeCollisionPolyBoxes[i]->colBox.dimensions.vx * ONE)));
+                            
+                            long bleedYPos = abs((activeCollisionPolyBoxes[i]->position.vy - (activeCollisionPolyBoxes[i]->colBox.dimensions.vy * ONE)) - playerSimulatedPosition.vy);
+                            long bleedYNeg = abs(activeCollisionPolyBoxes[i]->position.vy - (playerSimulatedPosition.vy - ((player->poly.boxHeight) * ONE)));
+
+                            long bleedZPos = abs((playerSimulatedPosition.vz + ((player->poly.boxWidth / 2) * ONE)) - activeCollisionPolyBoxes[i]->position.vz);
+                            long bleedZNeg = abs((playerSimulatedPosition.vz - ((player->poly.boxWidth / 2) * ONE)) - (activeCollisionPolyBoxes[i]->position.vz + (activeCollisionPolyBoxes[i]->colBox.dimensions.vz * ONE)));
+
+                            if (bleedXPos < bleedXNeg) {
+                                bleed[0] = -bleedXPos;
+                            }
+                            else if (bleedXPos > bleedXNeg) {
+                                bleed[0] = bleedXNeg;
+                            }
+
+                            if (bleedYPos < bleedYNeg) {
+                                bleed[1] = -bleedYPos;
+                            }
+                            else if (bleedYPos > bleedYNeg) {
+                                bleed[1] = bleedYNeg;
+                            }
+
+                            if (bleedZPos < bleedZNeg) {
+                                bleed[2] = -bleedZPos;
+                            }
+                            else if (bleedZPos > bleedZNeg) {
+                                bleed[2] = bleedZNeg;
+                            }
+
+                            size_t index = 0;
+                            long bleedValue = abs(bleed[0]);
+
+                            for (size_t i = 0; i < 3; i++) {
+                                if (abs(bleed[i]) < bleedValue) {
+                                    bleedValue = abs(bleed[i]);
+                                    index = i;
+                                }
+                            }
+
+                            if (index == 0) {
+                                playerSimulatedPositionFinal.vx += bleed[0];
+                                player->poly.obj.velocity.vx = 0;
+                            }
+                            else if (index == 1) {
+                                // Need a check somewhere to help with velocity being reset mid-jump
+                                playerSimulatedPositionFinal.vy += bleed[1];
+                                player->poly.obj.velocity.vy = 0;
+
+                                if (bleed[1] < 0) {
+                                    isPlayerOnCollision = true;
+                                }
+                            }
+                            else {
+                                playerSimulatedPositionFinal.vz += bleed[2];
+                                player->poly.obj.velocity.vz = 0;
+                            }
+
+                            //FntPrint("BleedX: %06d / %06d\n", bleedXPos, bleedXNeg);
+                            //FntPrint("BleedY: %06d / %06d\n", bleedYPos, bleedYNeg);
+                            //FntPrint("BleedZ: %06d / %06d\n", bleedZPos, bleedZNeg);
+                            //FntPrint("Y: %d, YDim: %d", activeCollisionPolyBoxes[i]->transform.t[1], activeCollisionPolyBoxes[i]->colBox.dimensions.vy);
+                        }
+                    }
+                    // If on the box
+                    else if (playerSimulatedPositionGridMins.vy == activeCollisionPolyBoxes[i]->transform.t[1] - activeCollisionPolyBoxes[i]->colBox.dimensions.vy) {
+                        isPlayerOnCollision = true;
+                    }
+                    
+                    //player->poly.obj.position = playerSimulatedPosition;
+                }
+            }
+
+            player->poly.obj.position = playerSimulatedPositionFinal;
+
+            //FntPrint("OC: %d, OF: %d\n", isPlayerOnCollision, isPlayerOnFloor);
+            
+
+            /*
             // Ugly, slow, and temporary manual platform check, don't mind me
             heightDif = player->poly.obj.transform.t[1] - (colPlatform->obj.transform.t[1] - colPlatform->boxHeight);
 
-            // If player is within the same XY space as the platform
+            // If player is within the same XZ space as the platform
             if (((player->poly.obj.transform.t[0] + player->poly.boxWidth / 2) > (colPlatform->obj.transform.t[0] - colPlatform->boxWidth / 2))
                 && ((player->poly.obj.transform.t[0] - player->poly.boxWidth / 2) < (colPlatform->obj.transform.t[0] + colPlatform->boxWidth / 2))
                 && ((player->poly.obj.transform.t[2] + player->poly.boxWidth / 2) > (colPlatform->obj.transform.t[2] - colPlatform->boxWidth / 2))
@@ -1032,6 +1379,21 @@ int main(void) {
                 player->poly.obj.position.vy = (colPlatform->obj.transform.t[1] - colPlatform->boxHeight) * ONE;
             }
             else if (heightDif == 0 && occupiesSameSpace) {
+                isPlayerOnFloor = true;
+            }
+            else if (player->poly.obj.position.vy == 0) {
+                isPlayerOnFloor = true;
+            }
+            else if ((player->poly.obj.position.vy + player->poly.obj.velocity.vy) > 0) {
+                player->poly.obj.position.vy = 0;
+                isPlayerOnFloor = true;
+            }
+            else {
+                isPlayerOnFloor = false;
+            }
+            */
+
+            if (isPlayerOnCollision) {
                 isPlayerOnFloor = true;
             }
             else if (player->poly.obj.position.vy == 0) {
@@ -1103,6 +1465,14 @@ int main(void) {
 
         CameraTransformPolyEx(player->cameraPtr, testPolyFloor);
         AddMultiPoly(testPolyFloor, cdb->ot);
+
+        for (size_t i = 0; i < ACTIVECOLBOXCOUNT; i++) {
+            CameraTransformStatic(player->cameraPtr, activeCollisionPolyBoxes[i]);
+            AddStaticPolyBox(activeCollisionPolyBoxes[i], cdb->ot);
+        }
+
+        //FntPrint("PT: %04d, %04d, %04d\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
+        //FntPrint("PV : %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
 
         DrawFrame();
     }

@@ -49,6 +49,8 @@ extern DR_MODE* drModeList;
 extern u_char curdrModeIndex;
 extern u_char curTPage;
 
+extern MATRIX globalRenderTransform;
+
 void LoadTexture(u_long* tim, TIM_IMAGE* tparam);
 void InitGraphics();
 void DrawFrame();

@@ -8,6 +8,8 @@ DR_MODE* drModeList = 0;
 u_char curdrModeIndex = 0;
 u_char curTPage = 0;
 
+MATRIX globalRenderTransform = { 0 };
+
 TIM_IMAGE woodPanel_tim;
 TIM_IMAGE woodDoor_tim;
 TIM_IMAGE cobble_tim;

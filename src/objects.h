@@ -10,6 +10,28 @@ enum DrawPriority {
     DRP_High
 };
 
+typedef struct CollisionBox {
+    SVECTOR dimensions;
+} CollisionBox;
+
+typedef struct RemoteCollisionBox {
+    SVECTOR gridPosition;
+    CollisionBox cbox;
+} RemoteCollisionBox;
+
+typedef struct StaticCollisionPolyBox {
+    VECTOR position;
+    SVECTOR rotation;
+    MATRIX transform;
+    CollisionBox colBox;
+
+    POLY_FT4* polys[6];
+    SVECTOR* vertices;
+    long* indices;
+} StaticCollisionPolyBox;
+
+
+
 // Holds Position, Rotation and Transform for an "object". Probably could use a better name.
 typedef struct GameObject {
     VECTOR position; // Position to update the Transform with. Position is ONE (4096) bigger than the actual values stored in the Transform
@@ -36,7 +58,7 @@ typedef struct PolyObject {
     ushort polyLength;
     void* polyPtr;
     SVECTOR* verticesPtr;
-    int* indicesPtr;
+    long* indicesPtr;
     enum DrawPriority drPrio;
 
     int boxHeight;
@@ -68,7 +90,7 @@ typedef struct TestTileMultiPoly {
     u_char depth;
 
     SVECTOR* verticesPtr;
-    int* indicesPtr;
+    long* indicesPtr;
     POLY_FT4* polyPtr;
 
     u_char subdivs;
