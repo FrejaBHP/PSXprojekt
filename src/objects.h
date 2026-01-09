@@ -10,6 +10,12 @@ enum DrawPriority {
     DRP_High
 };
 
+typedef struct CollisionOverlaps {
+    bool x;
+    bool y;
+    bool z;
+} CollisionOverlaps;
+
 typedef struct CollisionBox {
     SVECTOR dimensions;
 } CollisionBox;
@@ -52,7 +58,6 @@ typedef struct CameraObject {
 // Extends GameObject and can also hold all the data needed to draw a polygon
 typedef struct PolyObject {
     GameObject obj;
-    MATRIX renderTransform;
 
     u_char polySides;
     ushort polyLength;
@@ -78,7 +83,6 @@ typedef struct TexturedPolyObject {
 
 typedef struct TestTileMultiPoly {
     GameObject obj; // Compatibility
-    MATRIX renderTransform; // Holdover
 
     u_char repeats;
     u_char rx;

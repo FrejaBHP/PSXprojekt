@@ -183,12 +183,221 @@ static long tileWallIndices[] = {
 
 
 PlayerObject* player = NULL;
+bool isPlayerOnFloor = true;
+bool isPlayerOnCollision = false;
 
 PolyObject* activePolygons[ACTIVEPOLYGONCOUNT];
 TexturedPolyObject* activeTexPolygons[ACTIVETEXPOLYGONCOUNT];
 TexturedPolyObject* activeTiledTexPolygons[ACTIVETILEDTEXPOLYGONCOUNT];
 
 StaticCollisionPolyBox* activeCollisionPolyBoxes[ACTIVECOLBOXCOUNT];
+
+// overlaps is treated as an out parameter
+void ScanForOverlaps(const VECTOR* pMins, const VECTOR* pMaxs, const StaticCollisionPolyBox* scpolybox, CollisionOverlaps* overlaps) {
+    if (pMins->vx < scpolybox->transform.t[0] + scpolybox->colBox.dimensions.vx
+        && (pMaxs->vx > scpolybox->transform.t[0])) {
+        
+        overlaps->x = true;
+    }
+
+    if (pMins->vy > scpolybox->transform.t[1] - scpolybox->colBox.dimensions.vy
+        && (pMaxs->vy < scpolybox->transform.t[1])) {
+        
+        overlaps->y = true;
+    }
+
+    if (pMins->vz < scpolybox->transform.t[2] + scpolybox->colBox.dimensions.vz 
+        && (pMaxs->vz > scpolybox->transform.t[2])) {
+        
+        overlaps->z = true;
+    }
+}
+
+bool CanPlayerStep(const VECTOR* position) {
+    bool canStep = true;
+
+    VECTOR gridMins = { 
+        (position->vx >> 12) - player->poly.boxWidth / 2,
+        (position->vy >> 12),
+        (position->vz >> 12) - player->poly.boxWidth / 2
+    };
+
+    VECTOR gridMaxs = { 
+        (position->vx >> 12) + player->poly.boxWidth / 2,
+        (position->vy >> 12) - player->poly.boxHeight,
+        (position->vz >> 12) + player->poly.boxWidth / 2
+    };
+
+    for (size_t i = 0; i < ACTIVECOLBOXCOUNT; i++) {
+        CollisionOverlaps overlaps = { 0 };
+        ScanForOverlaps(&gridMins, &gridMaxs, activeCollisionPolyBoxes[i], &overlaps);
+
+        if (overlaps.x == true && overlaps.y == true && overlaps.z == true) {
+            canStep = false;
+            break;
+        }
+    }
+
+    return canStep;
+}
+
+void SimulatePlayerMovementCollision() {
+    isPlayerOnCollision = false;
+    bool playerHasStepped = false;
+
+    // In fixed-point units, aka 4096 = 1
+    VECTOR playerSimulatedPosition = player->poly.obj.position;
+    addVector(&playerSimulatedPosition, &player->poly.obj.velocity);
+    VECTOR playerSimulatedPositionFinal = playerSimulatedPosition; // This variable likely is not needed, but kept for now
+
+    // Unsure if these should be recalculated per object, but probably not?
+    
+    VECTOR playerSimulatedPositionGridMins = { 
+        (playerSimulatedPosition.vx >> 12) - player->poly.boxWidth / 2,
+        (playerSimulatedPosition.vy >> 12),
+        (playerSimulatedPosition.vz >> 12) - player->poly.boxWidth / 2
+    };
+
+    VECTOR playerSimulatedPositionGridMaxs = { 
+        (playerSimulatedPosition.vx >> 12) + player->poly.boxWidth / 2,
+        (playerSimulatedPosition.vy >> 12) - player->poly.boxHeight,
+        (playerSimulatedPosition.vz >> 12) + player->poly.boxWidth / 2
+    };
+    
+
+    for (size_t i = 0; i < ACTIVECOLBOXCOUNT; i++) {
+        CollisionOverlaps overlaps = { 0 };
+        bool stepping = false;
+
+        /*
+        VECTOR playerSimulatedPositionGridMins = { 
+            (playerSimulatedPositionFinal.vx >> 12) - player->poly.boxWidth / 2,
+            (playerSimulatedPositionFinal.vy >> 12),
+            (playerSimulatedPositionFinal.vz >> 12) - player->poly.boxWidth / 2
+        };
+
+        VECTOR playerSimulatedPositionGridMaxs = { 
+            (playerSimulatedPositionFinal.vx >> 12) + player->poly.boxWidth / 2,
+            (playerSimulatedPositionFinal.vy >> 12) - player->poly.boxHeight,
+            (playerSimulatedPositionFinal.vz >> 12) + player->poly.boxWidth / 2
+        };
+        */
+
+        ScanForOverlaps(&playerSimulatedPositionGridMins, &playerSimulatedPositionGridMaxs, activeCollisionPolyBoxes[i], &overlaps);
+
+        //FntPrint("%d %d %d\n", intersectsX, intersectsY, intersectsZ);
+
+        // If player is at least above or underneath a collision box
+        if (overlaps.x && overlaps.z) {
+            // If player is actually trying to enter collision box
+            if (overlaps.y) {
+                if (player->poly.obj.velocity.vy == 0 && isPlayerOnFloor && !playerHasStepped) {
+                    long stepheight = playerSimulatedPositionGridMins.vy - activeCollisionPolyBoxes[i]->transform.t[1] + activeCollisionPolyBoxes[i]->colBox.dimensions.vy;
+                    //FntPrint("StepHeight: %03d\n", stepheight);
+
+                    if (stepheight <= 32 && stepheight > 0) {
+                        // Second simulated position to check if player is trying to step up into geometry
+                        VECTOR playerStepPosition = playerSimulatedPositionFinal;
+                        playerStepPosition.vy = activeCollisionPolyBoxes[i]->position.vy - (activeCollisionPolyBoxes[i]->colBox.dimensions.vy * ONE);
+
+                        if (CanPlayerStep(&playerStepPosition)) {
+                            stepping = true;
+                            playerHasStepped = true;
+                            playerSimulatedPositionFinal.vy = activeCollisionPolyBoxes[i]->position.vy - (activeCollisionPolyBoxes[i]->colBox.dimensions.vy * ONE);
+                            isPlayerOnCollision = true;
+                        }
+                    }
+                }
+
+                if (!stepping) {
+                    // Bleeding, as in clipping/overlapping - not losing blood
+                    long bleed[3]; // X Y Z
+
+                    long bleedXPos = abs((playerSimulatedPositionFinal.vx + ((player->poly.boxWidth / 2) * ONE)) - activeCollisionPolyBoxes[i]->position.vx);
+                    long bleedXNeg = abs((playerSimulatedPositionFinal.vx - ((player->poly.boxWidth / 2) * ONE)) - (activeCollisionPolyBoxes[i]->position.vx + (activeCollisionPolyBoxes[i]->colBox.dimensions.vx * ONE)));
+                    
+                    long bleedYPos = abs((activeCollisionPolyBoxes[i]->position.vy - (activeCollisionPolyBoxes[i]->colBox.dimensions.vy * ONE)) - playerSimulatedPositionFinal.vy);
+                    long bleedYNeg = abs(activeCollisionPolyBoxes[i]->position.vy - (playerSimulatedPositionFinal.vy - ((player->poly.boxHeight) * ONE)));
+
+                    long bleedZPos = abs((playerSimulatedPositionFinal.vz + ((player->poly.boxWidth / 2) * ONE)) - activeCollisionPolyBoxes[i]->position.vz);
+                    long bleedZNeg = abs((playerSimulatedPositionFinal.vz - ((player->poly.boxWidth / 2) * ONE)) - (activeCollisionPolyBoxes[i]->position.vz + (activeCollisionPolyBoxes[i]->colBox.dimensions.vz * ONE)));
+
+                    if (bleedXPos < bleedXNeg) {
+                        bleed[0] = -bleedXPos;
+                    }
+                    else if (bleedXPos > bleedXNeg) {
+                        bleed[0] = bleedXNeg;
+                    }
+
+                    if (bleedYPos < bleedYNeg) {
+                        bleed[1] = -bleedYPos;
+                    }
+                    else if (bleedYPos > bleedYNeg) {
+                        bleed[1] = bleedYNeg;
+                    }
+
+                    if (bleedZPos < bleedZNeg) {
+                        bleed[2] = -bleedZPos;
+                    }
+                    else if (bleedZPos > bleedZNeg) {
+                        bleed[2] = bleedZNeg;
+                    }
+
+                    size_t index = 0;
+                    long bleedValue = abs(bleed[0]);
+
+                    for (size_t i = 0; i < 3; i++) {
+                        if (abs(bleed[i]) < bleedValue) {
+                            bleedValue = abs(bleed[i]);
+                            index = i;
+                        }
+                    }
+
+                    if (index == 0) {
+                        playerSimulatedPositionFinal.vx += bleed[0];
+                        player->poly.obj.velocity.vx = 0;
+                    }
+                    else if (index == 1) {
+                        // Need a check somewhere to help with velocity being reset mid-jump
+                        // Bug above is very very likely tied to the physics pushing the player up from below
+                        // Need to formulate a way to make this not actually happen if the player is ascending
+                        playerSimulatedPositionFinal.vy += bleed[1];
+
+                        // Causes issues with gaps, causes jitter on platforms
+                        // If moved into if statement below, you still lose momentum on climing some geometry, but you don't jitter in-between platforms
+                        player->poly.obj.velocity.vy = 0;
+
+                        // If player is pushed up
+                        if (bleed[1] < 0) {
+                            isPlayerOnCollision = true;
+                        }
+                    }
+                    else {
+                        playerSimulatedPositionFinal.vz += bleed[2];
+                        player->poly.obj.velocity.vz = 0;
+                    }
+
+                    //FntPrint("Colbox Index: %d\n", i);
+                    //FntPrint("BleedX: %06d / %06d\n", bleedXPos, bleedXNeg);
+                    //FntPrint("BleedY: %06d / %06d\n", bleedYPos, bleedYNeg);
+                    //FntPrint("BleedZ: %06d / %06d\n", bleedZPos, bleedZNeg);
+
+                    //FntPrint("Y: %d, YDim: %d", activeCollisionPolyBoxes[i]->transform.t[1], activeCollisionPolyBoxes[i]->colBox.dimensions.vy);
+                }
+            }
+            // If on the box
+            else if (playerSimulatedPositionGridMins.vy == activeCollisionPolyBoxes[i]->transform.t[1] - activeCollisionPolyBoxes[i]->colBox.dimensions.vy
+                && player->poly.obj.velocity.vy == 0) {
+
+                isPlayerOnCollision = true;
+            }
+            
+            //player->poly.obj.position = playerSimulatedPosition;
+        }
+    }
+
+    player->poly.obj.position = playerSimulatedPositionFinal;
+}
 
 // Splits the dataBuffer into the other members for readability and ease of use
 void UpdatePad(GamePad* pad) {
@@ -531,31 +740,20 @@ static void UpdatePolyObject(PolyObject* pobj) {
         }
         */
         
-        VECTOR gridPos = { pobj->obj.position.vx >> 12, pobj->obj.position.vy >> 12, pobj->obj.position.vz >> 12 };
+        VECTOR gridPos = { 
+            pobj->obj.position.vx >> 12, 
+            pobj->obj.position.vy >> 12, 
+            pobj->obj.position.vz >> 12 
+        };
+
         RotMatrix_gte(&pobj->obj.rotation, &pobj->obj.transform);
         TransMatrix(&pobj->obj.transform, &gridPos);
     }
 }
 
-static void CameraTransformPoly(CameraObject* camera, PolyObject* pobj) {
+static void CameraTransformMatrix(CameraObject* camera, MATRIX* matrix) {
     // Could get away with replacing this with a global instead of storing the render transform in every object
-    gte_CompMatrix(&camera->transform, &pobj->obj.transform, &pobj->renderTransform);
-        
-    gte_SetRotMatrix(&pobj->renderTransform);
-    gte_SetTransMatrix(&pobj->renderTransform);
-}
-
-static void CameraTransformPolyEx(CameraObject* camera, TestTileMultiPoly* tmp) {
-    // Could get away with replacing this with a global instead of storing the render transform in every object
-    gte_CompMatrix(&camera->transform, &tmp->obj.transform, &tmp->renderTransform);
-        
-    gte_SetRotMatrix(&tmp->renderTransform);
-    gte_SetTransMatrix(&tmp->renderTransform);
-}
-
-static void CameraTransformStatic(CameraObject* camera, StaticCollisionPolyBox* scpolybox) {
-    // Could get away with replacing this with a global instead of storing the render transform in every object
-    gte_CompMatrix(&camera->transform, &scpolybox->transform, &globalRenderTransform);
+    gte_CompMatrix(&camera->transform, matrix, &globalRenderTransform);
         
     gte_SetRotMatrix(&globalRenderTransform);
     gte_SetTransMatrix(&globalRenderTransform);
@@ -884,8 +1082,6 @@ int main(void) {
     }
 
     CreatePlayer(col);
-    bool isPlayerOnFloor = true;
-    bool isPlayerOnCollision = false;
 
     PolyObject* colPlatform = CreatePolyObjectF4(
         0, -24, DISTTHING / 2, 
@@ -1135,6 +1331,7 @@ int main(void) {
         UpdatePad(&pad0);
 
         if (pad0.status == 0) {
+            // Only reason I'm keeping this commented out block is to have a visible shorthand for input names
             /*
             if (AutoRotate == 0) {
                 if (pad0.buttons & PADL1)      cube.obj.position.vz -= 4;
@@ -1212,211 +1409,34 @@ int main(void) {
             else if (pad0.rightstick.x > ANALOGUE_MINPOS) {
                 player->cameraPtr->rotation.vy -= ONE * 8;
             }
+        }
 
+        // Simulates player movement and resolves collision, then moves the player accordingly
+        SimulatePlayerMovementCollision();
 
-            // In fixed-point units, aka 4096 = 1
-            VECTOR playerSimulatedPosition = player->poly.obj.position;
-            addVector(&playerSimulatedPosition, &player->poly.obj.velocity);
-            VECTOR playerSimulatedPositionFinal = playerSimulatedPosition;
+        if (isPlayerOnCollision) {
+            isPlayerOnFloor = true;
+        }
+        else if (player->poly.obj.position.vy == 0) {
+            isPlayerOnFloor = true;
+        }
+        else if ((player->poly.obj.position.vy + player->poly.obj.velocity.vy) > 0) {
+            player->poly.obj.position.vy = 0;
+            isPlayerOnFloor = true;
+        }
+        else {
+            isPlayerOnFloor = false;
+        }
 
-            isPlayerOnCollision = false;
-            bool playerHasStepped = false;
+        if (isPlayerOnFloor) {
+            player->poly.obj.velocity.vy = 0;
 
-            // Unsure if these should be recalculated per object, but probably not
-            VECTOR playerSimulatedPositionGridMins = { 
-                (playerSimulatedPosition.vx >> 12) - player->poly.boxWidth / 2,
-                (playerSimulatedPosition.vy >> 12),
-                (playerSimulatedPosition.vz >> 12) - player->poly.boxWidth / 2
-            };
-
-            VECTOR playerSimulatedPositionGridMaxs = { 
-                (playerSimulatedPosition.vx >> 12) + player->poly.boxWidth / 2,
-                (playerSimulatedPosition.vy >> 12) - player->poly.boxHeight,
-                (playerSimulatedPosition.vz >> 12) + player->poly.boxWidth / 2
-            };
-
-            for (size_t i = 0; i < ACTIVECOLBOXCOUNT; i++) {
-                bool intersectsX = false;
-                bool intersectsY = false;
-                bool intersectsZ = false;
-                bool stepping = false;
-
-                if (playerSimulatedPositionGridMins.vx < activeCollisionPolyBoxes[i]->transform.t[0] + activeCollisionPolyBoxes[i]->colBox.dimensions.vx
-                    && (playerSimulatedPositionGridMaxs.vx > activeCollisionPolyBoxes[i]->transform.t[0])) {
-                    
-                    intersectsX = true;
-                }
-
-                if (playerSimulatedPositionGridMins.vy > activeCollisionPolyBoxes[i]->transform.t[1] - activeCollisionPolyBoxes[i]->colBox.dimensions.vy
-                    && (playerSimulatedPositionGridMaxs.vy < activeCollisionPolyBoxes[i]->transform.t[1])) {
-                    
-                    intersectsY = true;
-                }
-
-                if (playerSimulatedPositionGridMins.vz < activeCollisionPolyBoxes[i]->transform.t[2] + activeCollisionPolyBoxes[i]->colBox.dimensions.vz 
-                    && (playerSimulatedPositionGridMaxs.vz > activeCollisionPolyBoxes[i]->transform.t[2])) {
-                    
-                    intersectsZ = true;
-                }
-
-                //FntPrint("%d %d %d\n", intersectsX, intersectsY, intersectsZ);
-
-                if (intersectsX && intersectsZ) {
-                    // If actual collision
-                    if (intersectsY) {
-                        if (player->poly.obj.velocity.vy == 0 && isPlayerOnFloor && !playerHasStepped) {
-                            long stepheight = playerSimulatedPositionGridMins.vy - activeCollisionPolyBoxes[i]->transform.t[1] + activeCollisionPolyBoxes[i]->colBox.dimensions.vy;
-                            //FntPrint("StepHeight: %03d\n", stepheight);
-
-                            if (stepheight <= 32 && stepheight > 0) {
-                                stepping = true;
-                                playerHasStepped = true;
-                                playerSimulatedPositionFinal.vy = activeCollisionPolyBoxes[i]->position.vy - (activeCollisionPolyBoxes[i]->colBox.dimensions.vy * ONE);
-                                isPlayerOnCollision = true;
-                            }
-                        }
-
-                        if (!stepping) {
-                            long bleed[3]; // X Y Z
-
-                            long bleedXPos = abs((playerSimulatedPosition.vx + ((player->poly.boxWidth / 2) * ONE)) - activeCollisionPolyBoxes[i]->position.vx);
-                            long bleedXNeg = abs((playerSimulatedPosition.vx - ((player->poly.boxWidth / 2) * ONE)) - (activeCollisionPolyBoxes[i]->position.vx + (activeCollisionPolyBoxes[i]->colBox.dimensions.vx * ONE)));
-                            
-                            long bleedYPos = abs((activeCollisionPolyBoxes[i]->position.vy - (activeCollisionPolyBoxes[i]->colBox.dimensions.vy * ONE)) - playerSimulatedPosition.vy);
-                            long bleedYNeg = abs(activeCollisionPolyBoxes[i]->position.vy - (playerSimulatedPosition.vy - ((player->poly.boxHeight) * ONE)));
-
-                            long bleedZPos = abs((playerSimulatedPosition.vz + ((player->poly.boxWidth / 2) * ONE)) - activeCollisionPolyBoxes[i]->position.vz);
-                            long bleedZNeg = abs((playerSimulatedPosition.vz - ((player->poly.boxWidth / 2) * ONE)) - (activeCollisionPolyBoxes[i]->position.vz + (activeCollisionPolyBoxes[i]->colBox.dimensions.vz * ONE)));
-
-                            if (bleedXPos < bleedXNeg) {
-                                bleed[0] = -bleedXPos;
-                            }
-                            else if (bleedXPos > bleedXNeg) {
-                                bleed[0] = bleedXNeg;
-                            }
-
-                            if (bleedYPos < bleedYNeg) {
-                                bleed[1] = -bleedYPos;
-                            }
-                            else if (bleedYPos > bleedYNeg) {
-                                bleed[1] = bleedYNeg;
-                            }
-
-                            if (bleedZPos < bleedZNeg) {
-                                bleed[2] = -bleedZPos;
-                            }
-                            else if (bleedZPos > bleedZNeg) {
-                                bleed[2] = bleedZNeg;
-                            }
-
-                            size_t index = 0;
-                            long bleedValue = abs(bleed[0]);
-
-                            for (size_t i = 0; i < 3; i++) {
-                                if (abs(bleed[i]) < bleedValue) {
-                                    bleedValue = abs(bleed[i]);
-                                    index = i;
-                                }
-                            }
-
-                            if (index == 0) {
-                                playerSimulatedPositionFinal.vx += bleed[0];
-                                player->poly.obj.velocity.vx = 0;
-                            }
-                            else if (index == 1) {
-                                // Need a check somewhere to help with velocity being reset mid-jump
-                                playerSimulatedPositionFinal.vy += bleed[1];
-                                player->poly.obj.velocity.vy = 0;
-
-                                if (bleed[1] < 0) {
-                                    isPlayerOnCollision = true;
-                                }
-                            }
-                            else {
-                                playerSimulatedPositionFinal.vz += bleed[2];
-                                player->poly.obj.velocity.vz = 0;
-                            }
-
-                            //FntPrint("BleedX: %06d / %06d\n", bleedXPos, bleedXNeg);
-                            //FntPrint("BleedY: %06d / %06d\n", bleedYPos, bleedYNeg);
-                            //FntPrint("BleedZ: %06d / %06d\n", bleedZPos, bleedZNeg);
-                            //FntPrint("Y: %d, YDim: %d", activeCollisionPolyBoxes[i]->transform.t[1], activeCollisionPolyBoxes[i]->colBox.dimensions.vy);
-                        }
-                    }
-                    // If on the box
-                    else if (playerSimulatedPositionGridMins.vy == activeCollisionPolyBoxes[i]->transform.t[1] - activeCollisionPolyBoxes[i]->colBox.dimensions.vy) {
-                        isPlayerOnCollision = true;
-                    }
-                    
-                    //player->poly.obj.position = playerSimulatedPosition;
-                }
+            if (pad0.buttons & PADRdown) {
+                player->poly.obj.velocity.vy -= 8 * ONE;
             }
-
-            player->poly.obj.position = playerSimulatedPositionFinal;
-
-            //FntPrint("OC: %d, OF: %d\n", isPlayerOnCollision, isPlayerOnFloor);
-            
-
-            /*
-            // Ugly, slow, and temporary manual platform check, don't mind me
-            heightDif = player->poly.obj.transform.t[1] - (colPlatform->obj.transform.t[1] - colPlatform->boxHeight);
-
-            // If player is within the same XZ space as the platform
-            if (((player->poly.obj.transform.t[0] + player->poly.boxWidth / 2) > (colPlatform->obj.transform.t[0] - colPlatform->boxWidth / 2))
-                && ((player->poly.obj.transform.t[0] - player->poly.boxWidth / 2) < (colPlatform->obj.transform.t[0] + colPlatform->boxWidth / 2))
-                && ((player->poly.obj.transform.t[2] + player->poly.boxWidth / 2) > (colPlatform->obj.transform.t[2] - colPlatform->boxWidth / 2))
-                && ((player->poly.obj.transform.t[2] - player->poly.boxWidth / 2) < (colPlatform->obj.transform.t[2] + colPlatform->boxWidth / 2))) {
-                
-                occupiesSameSpace = true;
-            }
-            else {
-                occupiesSameSpace = false;
-            }
-
-            // Is player on/over platform
-            if (heightDif < 0 && ((heightDif << 12) + player->poly.obj.velocity.vy) >= 0 && occupiesSameSpace) {
-                isPlayerOnFloor = true;
-                player->poly.obj.position.vy = (colPlatform->obj.transform.t[1] - colPlatform->boxHeight) * ONE;
-            }
-            else if (heightDif == 0 && occupiesSameSpace) {
-                isPlayerOnFloor = true;
-            }
-            else if (player->poly.obj.position.vy == 0) {
-                isPlayerOnFloor = true;
-            }
-            else if ((player->poly.obj.position.vy + player->poly.obj.velocity.vy) > 0) {
-                player->poly.obj.position.vy = 0;
-                isPlayerOnFloor = true;
-            }
-            else {
-                isPlayerOnFloor = false;
-            }
-            */
-
-            if (isPlayerOnCollision) {
-                isPlayerOnFloor = true;
-            }
-            else if (player->poly.obj.position.vy == 0) {
-                isPlayerOnFloor = true;
-            }
-            else if ((player->poly.obj.position.vy + player->poly.obj.velocity.vy) > 0) {
-                player->poly.obj.position.vy = 0;
-                isPlayerOnFloor = true;
-            }
-            else {
-                isPlayerOnFloor = false;
-            }
-
-            if (isPlayerOnFloor) {
-                player->poly.obj.velocity.vy = 0;
-
-                if (pad0.buttons & PADRdown) {
-                    player->poly.obj.velocity.vy -= 8 * ONE;
-                }
-            }
-            else {
-                player->poly.obj.velocity.vy += ONE / 2;
-            }
+        }
+        else {
+            player->poly.obj.velocity.vy += ONE / 2;
         }
         
         if (AutoRotate) {
@@ -1446,28 +1466,28 @@ int main(void) {
 
         // Add polys to OT
         for (size_t i = 0; i < ACTIVEPOLYGONCOUNT; i++) {
-            CameraTransformPoly(player->cameraPtr, activePolygons[i]);
+            CameraTransformMatrix(player->cameraPtr, &activePolygons[i]->obj.transform);
             AddPolyF(activePolygons[i], cdb->ot);
         }
         
         for (size_t i = 0; i < ACTIVETEXPOLYGONCOUNT; i++) {
-            CameraTransformPoly(player->cameraPtr, &activeTexPolygons[i]->polyObj);
+            CameraTransformMatrix(player->cameraPtr, &activeTexPolygons[i]->polyObj.obj.transform);
             AddPolyFT(activeTexPolygons[i], cdb->ot);
         }
 
         for (size_t i = 0; i < ACTIVETILEDTEXPOLYGONCOUNT; i++) {
-            CameraTransformPoly(player->cameraPtr, &activeTiledTexPolygons[i]->polyObj);
+            CameraTransformMatrix(player->cameraPtr, &activeTiledTexPolygons[i]->polyObj.obj.transform);
             AddTiledPolyFT(activeTiledTexPolygons[i], cdb->ot);
         }
 
-        CameraTransformPolyEx(player->cameraPtr, testPoly);
+        CameraTransformMatrix(player->cameraPtr, &testPoly->obj.transform);
         AddMultiPoly(testPoly, cdb->ot);
 
-        CameraTransformPolyEx(player->cameraPtr, testPolyFloor);
+        CameraTransformMatrix(player->cameraPtr, &testPolyFloor->obj.transform);
         AddMultiPoly(testPolyFloor, cdb->ot);
 
         for (size_t i = 0; i < ACTIVECOLBOXCOUNT; i++) {
-            CameraTransformStatic(player->cameraPtr, activeCollisionPolyBoxes[i]);
+            CameraTransformMatrix(player->cameraPtr, &activeCollisionPolyBoxes[i]->transform);
             AddStaticPolyBox(activeCollisionPolyBoxes[i], cdb->ot);
         }
 
