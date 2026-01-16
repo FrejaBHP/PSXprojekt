@@ -111,10 +111,4 @@ typedef struct TestTileMultiPoly {
 
 } TestTileMultiPoly;
 
-typedef struct PlayerObject {
-    PolyObject poly;
-    CameraObject* cameraPtr;
-    VECTOR velocity;
-} PlayerObject;
-
 #endif
