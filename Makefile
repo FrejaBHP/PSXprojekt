@@ -5,6 +5,7 @@ SRCS = \
 third_party/nugget/common/crt0/crt0.s \
 src/main.c \
 src/graphics.c \
+src/physics.c \
 textures/woodPanel.tim \
 textures/woodDoor.tim \
 textures/cobble.tim \

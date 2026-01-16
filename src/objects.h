@@ -3,6 +3,7 @@
 
 #include <libgte.h>
 #include <libgpu.h>
+#include <stdbool.h>
 
 enum DrawPriority {
     DRP_Neutral,

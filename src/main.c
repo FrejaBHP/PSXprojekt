@@ -4,11 +4,13 @@
 #include <libetc.h>
 #include <libgpu.h>
 #include <libapi.h>
+#include <libspu.h>
 #include <inline_n.h>
 #include <gtemac.h>
 
 #include "graphics.h"
 #include "objects.h"
+#include "physics.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 #define setPosVToGrid(v, _x, _y, _z) \
@@ -46,6 +48,8 @@
 #define ACTIVETILEDTEXPOLYGONCOUNT 1
 #define ACTIVECOLBOXCOUNT 6
 
+extern u_long __heap_start;
+u_long* heapStart = &__heap_start;
 
 typedef struct Vector2UB {
     u_char x; // Left = neg, Right = pos
@@ -173,11 +177,11 @@ static SVECTOR tiledPanelVertices[] = {
     { WALLHALF, 0, 0, 0 }, { 0, 0, 0, 0 }
 };
 
-static long floorIndices[] = {
+static long reverseWindingIndices[] = {
     0, 3, 2, 1
 };
 
-static long tileWallIndices[] = {
+static long windingIndices[] = {
     0, 1, 2, 3
 };
 
@@ -252,6 +256,7 @@ void SimulatePlayerMovementCollision() {
 
     // Unsure if these should be recalculated per object, but probably not?
     
+    /*
     VECTOR playerSimulatedPositionGridMins = { 
         (playerSimulatedPosition.vx >> 12) - player->poly.boxWidth / 2,
         (playerSimulatedPosition.vy >> 12),
@@ -263,13 +268,13 @@ void SimulatePlayerMovementCollision() {
         (playerSimulatedPosition.vy >> 12) - player->poly.boxHeight,
         (playerSimulatedPosition.vz >> 12) + player->poly.boxWidth / 2
     };
-    
+    */
 
     for (size_t i = 0; i < ACTIVECOLBOXCOUNT; i++) {
         CollisionOverlaps overlaps = { 0 };
         bool stepping = false;
 
-        /*
+        
         VECTOR playerSimulatedPositionGridMins = { 
             (playerSimulatedPositionFinal.vx >> 12) - player->poly.boxWidth / 2,
             (playerSimulatedPositionFinal.vy >> 12),
@@ -281,7 +286,7 @@ void SimulatePlayerMovementCollision() {
             (playerSimulatedPositionFinal.vy >> 12) - player->poly.boxHeight,
             (playerSimulatedPositionFinal.vz >> 12) + player->poly.boxWidth / 2
         };
-        */
+        
 
         ScanForOverlaps(&playerSimulatedPositionGridMins, &playerSimulatedPositionGridMaxs, activeCollisionPolyBoxes[i], &overlaps);
 
@@ -312,6 +317,7 @@ void SimulatePlayerMovementCollision() {
                 if (!stepping) {
                     // Bleeding, as in clipping/overlapping - not losing blood
                     long bleed[3]; // X Y Z
+                    bool ignoreY = false;
 
                     long bleedXPos = abs((playerSimulatedPositionFinal.vx + ((player->poly.boxWidth / 2) * ONE)) - activeCollisionPolyBoxes[i]->position.vx);
                     long bleedXNeg = abs((playerSimulatedPositionFinal.vx - ((player->poly.boxWidth / 2) * ONE)) - (activeCollisionPolyBoxes[i]->position.vx + (activeCollisionPolyBoxes[i]->colBox.dimensions.vx * ONE)));
@@ -322,21 +328,39 @@ void SimulatePlayerMovementCollision() {
                     long bleedZPos = abs((playerSimulatedPositionFinal.vz + ((player->poly.boxWidth / 2) * ONE)) - activeCollisionPolyBoxes[i]->position.vz);
                     long bleedZNeg = abs((playerSimulatedPositionFinal.vz - ((player->poly.boxWidth / 2) * ONE)) - (activeCollisionPolyBoxes[i]->position.vz + (activeCollisionPolyBoxes[i]->colBox.dimensions.vz * ONE)));
 
-                    if (bleedXPos < bleedXNeg) {
+                    if (bleedXPos <= bleedXNeg) {
                         bleed[0] = -bleedXPos;
                     }
                     else if (bleedXPos > bleedXNeg) {
                         bleed[0] = bleedXNeg;
                     }
 
+                    /*
+                        *** Bonking head against top platform bug: ***
+                        Because the platforms are indexed from top to bottom, hitting the top platform while hugging the middle one
+                        results in bonking it, because the push on X from the middle platform is performed *after* the top platform detected a Y overlap
+                    */
+
+                    // Landing on something
                     if (bleedYPos < bleedYNeg) {
+                        FntPrint("YV: %06d\n", player->poly.obj.velocity.vy);
                         bleed[1] = -bleedYPos;
+
+                        if (player->poly.obj.velocity.vy < 0) {
+                            ignoreY = true;
+                        }
                     }
-                    else if (bleedYPos > bleedYNeg) {
+                    // Hitting head against something
+                    else if (bleedYPos >= bleedYNeg) {
+                        FntPrint("YV: %06d\n", player->poly.obj.velocity.vy);
                         bleed[1] = bleedYNeg;
+
+                        if (player->poly.obj.velocity.vy >= 0) {
+                            ignoreY = true;
+                        }
                     }
 
-                    if (bleedZPos < bleedZNeg) {
+                    if (bleedZPos <= bleedZNeg) {
                         bleed[2] = -bleedZPos;
                     }
                     else if (bleedZPos > bleedZNeg) {
@@ -346,10 +370,20 @@ void SimulatePlayerMovementCollision() {
                     size_t index = 0;
                     long bleedValue = abs(bleed[0]);
 
+                    // Can probably save a few cycles here by not comparing X to itself
                     for (size_t i = 0; i < 3; i++) {
+                        if (i == 1 && ignoreY) {
+                            continue;
+                        }
+
                         if (abs(bleed[i]) < bleedValue) {
                             bleedValue = abs(bleed[i]);
                             index = i;
+
+                            FntPrint("%d < %d: true\n", abs(bleed[i]), bleedValue);
+                        }
+                        else {
+                            FntPrint("%d < %d: false\n", abs(bleed[i]), bleedValue);
                         }
                     }
 
@@ -358,18 +392,14 @@ void SimulatePlayerMovementCollision() {
                         player->poly.obj.velocity.vx = 0;
                     }
                     else if (index == 1) {
-                        // Need a check somewhere to help with velocity being reset mid-jump
-                        // Bug above is very very likely tied to the physics pushing the player up from below
-                        // Need to formulate a way to make this not actually happen if the player is ascending
                         playerSimulatedPositionFinal.vy += bleed[1];
-
-                        // Causes issues with gaps, causes jitter on platforms
-                        // If moved into if statement below, you still lose momentum on climing some geometry, but you don't jitter in-between platforms
-                        player->poly.obj.velocity.vy = 0;
 
                         // If player is pushed up
                         if (bleed[1] < 0) {
                             isPlayerOnCollision = true;
+                        }
+                        else {
+                            player->poly.obj.velocity.vy = 0;
                         }
                     }
                     else {
@@ -377,10 +407,11 @@ void SimulatePlayerMovementCollision() {
                         player->poly.obj.velocity.vz = 0;
                     }
 
-                    //FntPrint("Colbox Index: %d\n", i);
-                    //FntPrint("BleedX: %06d / %06d\n", bleedXPos, bleedXNeg);
-                    //FntPrint("BleedY: %06d / %06d\n", bleedYPos, bleedYNeg);
-                    //FntPrint("BleedZ: %06d / %06d\n", bleedZPos, bleedZNeg);
+                    FntPrint("Colbox Index: %d\n", i);
+                    FntPrint("BleedX: %06d / %06d\n", bleedXPos, bleedXNeg);
+                    FntPrint("BleedY: %06d / %06d\n", bleedYPos, bleedYNeg);
+                    FntPrint("BleedZ: %06d / %06d\n", bleedZPos, bleedZNeg);
+                    FntPrint("Bleed Index: %d\n", index);
 
                     //FntPrint("Y: %d, YDim: %d", activeCollisionPolyBoxes[i]->transform.t[1], activeCollisionPolyBoxes[i]->colBox.dimensions.vy);
                 }
@@ -616,10 +647,10 @@ TestTileMultiPoly* CreateTestMultiPoly(
         tmp->verticesPtr = vertices;
 
         if (tmp->reverseOrder) {
-            tmp->indicesPtr = floorIndices;
+            tmp->indicesPtr = reverseWindingIndices;
         }
         else {
-            tmp->indicesPtr = tileWallIndices;
+            tmp->indicesPtr = windingIndices;
         }
 
         POLY_FT4* poly = calloc(tmp->totalPolys, sizeof(POLY_FT4));
@@ -864,13 +895,6 @@ static void AddPolyFT(TexturedPolyObject* tpobj, u_long* ot) {
             if ((otz > 0) && (otz < OTSIZE)) {
                 OrderThing(&otz, tpobj->polyObj.drPrio);
                 AddPrim(&ot[otz], poly);
-
-                curTPage = poly->tpage;
-                DR_MODE* drMode = &drModeList[curdrModeIndex];
-                setDrawMode(drMode, 0, 1, curTPage, &tpobj->trect);
-
-                AddPrim(&ot[otz], drMode);
-                curdrModeIndex++;
             }
         }
     }
@@ -1048,11 +1072,13 @@ int main(void) {
     // Function signature for InitHeap() takes a starting address and a size for the heap in bytes (size needs to be a multiple of 4)
     // InitHeap() only allows standard malloc(), calloc(), free(), etc. The numbered versions, eg malloc<2 or 3>(), require use of InitHeap<2 or 3>() instead
 
-    // Maybe __heap_start could be funny
-    InitHeap((u_long*)0x80040000, (u_long)0x40000);
+    //InitHeap((u_long*)0x80040000, (u_long)0x40000);
+
+    // Revision: End of data segments grabbed directly from linker map and used here, so no need to manually adjust
+    InitHeap(heapStart, (u_long)0x40000);
 
     InitGraphics();
-    drModeList = malloc(sizeof(DR_MODE) * SPECPRIMSSIZE);
+    SpuInit();
 
     GamePad pad0 = { 0 };
     GamePad pad1 = { 0 };
@@ -1104,7 +1130,7 @@ int main(void) {
         0, 0, DISTTHING, 
         //ONE / 2, 0, 0,
         0, 0, 0,
-        1, 4, floorVertices, floorIndices,
+        1, 4, floorVertices, reverseWindingIndices,
         DRP_Low, 
         false, 0, 0, true, 
         &cobble_tim, 
@@ -1160,7 +1186,7 @@ int main(void) {
         192, 0, -32, 
         //ONE / 2, 0, 0,
         0, 0, 0,
-        1, 4, longFloorVertices, floorIndices,
+        1, 4, longFloorVertices, reverseWindingIndices,
         DRP_Low, 
         false, 0, 0, true, 
         &cobble_tim, 
@@ -1174,7 +1200,7 @@ int main(void) {
         192 + WALLHALF * 4 + DOORHALF * 3, 0, 96, 
         0, 0, 0,
         //6, 4, tWallVertices, cubeIndices,
-        5, 4, tiledPanelVertices, tileWallIndices,
+        5, 4, tiledPanelVertices, windingIndices,
         DRP_Neutral, 
         false, 0, 0, true, 
         &woodPanel_tim, 
@@ -1205,9 +1231,6 @@ int main(void) {
         0, 127, 128, 128
     );
     
-
-    int heightDif;
-    bool occupiesSameSpace = false;
 
     activePolygons[0] = &player->poly;
     activePolygons[1] = cube;
@@ -1492,7 +1515,9 @@ int main(void) {
         }
 
         //FntPrint("PT: %04d, %04d, %04d\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
-        //FntPrint("PV : %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
+        FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
+
+        //FntPrint("%x\n", heapStart);
 
         DrawFrame();
     }
