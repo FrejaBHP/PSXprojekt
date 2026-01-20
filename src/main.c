@@ -17,9 +17,6 @@
 #define setPosVToGrid(v, _x, _y, _z) \
 	(v)->vx = _x >> 12, (v)->vy = _y >> 12, (v)->vz = _z >> 12
 
-#define SCREENXRES 640
-#define SCREENYRES 480
-#define FOV SCREENXRES / 2
 #define DISTTHING 512
 
 #define PLAYERHEIGHT 48
@@ -115,22 +112,6 @@ static SVECTOR platformVertices[] = {
     { 0, -16,  WALLHALF, 0 }, { WALLHALF, -16,  WALLHALF, 0 },
     { WALLHALF, 0,  WALLHALF, 0 }, { 0, 0, WALLHALF, 0 },
 };
-
-/*
-static SVECTOR tWallVertices[] = {
-    { -WALLHALF, -WALLHEIGHT, -DOORHALF, 0 }, {  WALLHALF, -WALLHEIGHT, -DOORHALF, 0 },
-    {  WALLHALF,  0,          -DOORHALF, 0 }, { -WALLHALF,  0,          -DOORHALF, 0 },
-    { -WALLHALF, -WALLHEIGHT,  DOORHALF, 0 }, {  WALLHALF, -WALLHEIGHT,  DOORHALF, 0 },
-    {  WALLHALF,  0,           DOORHALF, 0 }, { -WALLHALF,  0,           DOORHALF, 0 },
-};
-
-static SVECTOR tDoorVertices[] = {
-    { -DOORHALF, -WALLHEIGHT, -DOORHALF, 0 }, {  DOORHALF, -WALLHEIGHT, -DOORHALF, 0 },
-    {  DOORHALF,  0,          -DOORHALF, 0 }, { -DOORHALF,  0,          -DOORHALF, 0 },
-    { -DOORHALF, -WALLHEIGHT,  DOORHALF, 0 }, {  DOORHALF, -WALLHEIGHT,  DOORHALF, 0 },
-    {  DOORHALF,  0,           DOORHALF, 0 }, { -DOORHALF,  0,           DOORHALF, 0 },
-};
-*/
 
 static SVECTOR tWallVertices[] = {
     { 0, -WALLHEIGHT, 0, 0 },               { WALLHALF * 2, -WALLHEIGHT, 0, 0 },
@@ -1193,6 +1174,8 @@ int main(void) {
             }
         }
 
+        //FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
+
         // Simulates player movement and resolves collision, then moves the player accordingly
         SimulatePlayerMovementCollision();
 
@@ -1274,7 +1257,7 @@ int main(void) {
         }
 
         //FntPrint("PT: %04d, %04d, %04d\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
-        FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
+        //FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
 
         //FntPrint("%x\n", heapStart);
 

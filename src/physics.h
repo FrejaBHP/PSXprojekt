@@ -22,7 +22,7 @@ extern StaticCollisionPolyBox* activeCollisionPolyBoxes[ACTIVECOLBOXCOUNT];
 void ScanForOverlaps(const VECTOR* pMins, const VECTOR* pMaxs, const StaticCollisionPolyBox* scpolybox, CollisionOverlaps* overlaps);
 bool CanPlayerStep(const VECTOR* position);
 void SimulatePlayerMovementCollision();
-void SortOverlaps(const size_t numEntries);
+void SortAndResolveOverlaps(const size_t numEntries);
 void ResolveOverlaps(const PhysicsResolutionEntry* table, size_t numEntries);
 
 #endif
