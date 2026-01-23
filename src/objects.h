@@ -82,6 +82,12 @@ typedef struct TexturedPolyObject {
     bool repeating;
 } TexturedPolyObject;
 
+typedef struct TiledTexturedPolyObject {
+    PolyObject polyObj;
+    TIM_IMAGE* tim;
+    u_char totalPolys;
+} TiledTexturedPolyObject;
+
 typedef struct TestTileMultiPoly {
     GameObject obj; // Compatibility
 

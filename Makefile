@@ -10,6 +10,9 @@ src/player.c \
 textures/woodPanel.tim \
 textures/woodDoor.tim \
 textures/cobble.tim \
+textures/dlv_metalpanel.tim \
+textures/dlv_slate.tim \
+textures/dlv_stonebrick.tim \
 
 CPPFLAGS += -Ithird_party/psyq-iwyu/include
 LDFLAGS += -Lthird_party/psyq/lib
