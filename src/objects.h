@@ -18,6 +18,7 @@ typedef struct CollisionOverlaps {
 } CollisionOverlaps;
 
 typedef struct CollisionBox {
+    VECTOR gridPos;
     SVECTOR dimensions;
 } CollisionBox;
 

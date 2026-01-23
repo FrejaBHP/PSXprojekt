@@ -1,7 +1,8 @@
 #ifndef __PHYSICS_H
 #define __PHYSICS_H
 
-#define ACTIVECOLBOXCOUNT 6
+#define ACTIVEPOLYCOLBOXCOUNT 6
+#define ACTIVECOLBOXES 8
 
 #include <stdlib.h>
 #include <libgte.h>
@@ -17,9 +18,10 @@ typedef struct PhysicsResolutionEntry {
 } PhysicsResolutionEntry;
 
 extern PhysicsResolutionEntry PhysicsResolutionTable[16];
-extern StaticCollisionPolyBox* activeCollisionPolyBoxes[ACTIVECOLBOXCOUNT];
+extern StaticCollisionPolyBox* activeCollisionPolyBoxes[ACTIVEPOLYCOLBOXCOUNT];
+extern CollisionBox* activeCollisionBoxes[ACTIVECOLBOXES];
 
-void ScanForOverlaps(const VECTOR* pMins, const VECTOR* pMaxs, const StaticCollisionPolyBox* scpolybox, CollisionOverlaps* overlaps);
+void ScanForOverlaps(const VECTOR* pMins, const VECTOR* pMaxs, const CollisionBox* colBox, CollisionOverlaps* overlaps);
 bool CanPlayerStep(const VECTOR* position);
 void SimulatePlayerMovementCollision();
 void SortAndResolveOverlaps(const size_t numEntries);

@@ -43,7 +43,7 @@
 
 #define ACTIVEPOLYGONCOUNT 3
 #define ACTIVETEXPOLYGONCOUNT 5
-#define ACTIVETILEDTEXPOLYGONCOUNT 2
+#define ACTIVETILEDTEXPOLYGONCOUNT 4
 
 extern u_long __heap_start;
 u_long* heapStart = &__heap_start;
@@ -200,6 +200,23 @@ static void OrderThing(long* otz, int dp) {
     }
 }
 
+long GetVectorPlaneLength(VECTOR* vec) {
+    long cA;
+    long cB;
+    long cC;
+
+    cA = abs(vec->vx);
+    cB = abs(vec->vy);
+
+    cA *= cA;
+    cB *= cB;
+
+    cC = cA + cB;
+    cC = SquareRoot0(cC);
+
+    return cC;
+}
+
 long GetVectorPlaneLength64(VECTOR* vec) {
     long cA;
     long cB;
@@ -272,6 +289,7 @@ StaticCollisionPolyBox* CreateCollisionPolyBox(
     setVector(&scpolybox->position, pos.vx * ONE, pos.vy * ONE, pos.vz * ONE);
     setVector(&scpolybox->rotation, rotX, rotY, rotZ);
     scpolybox->vertices = vertPtr;
+    setVector(&scpolybox->colBox.gridPos, pos.vx, pos.vy, pos.vz);
     scpolybox->colBox.dimensions = scpolybox->vertices[5];
     scpolybox->colBox.dimensions.vy = -scpolybox->colBox.dimensions.vy;
     scpolybox->indices = cubeIndices;
@@ -1099,12 +1117,34 @@ int main(void) {
         0, 0, 128, 128
     );
 
+    TiledTexturedPolyObject* tiledWall1 = CreateTiledTexturedPolyObjectFT4(
+        928, 0, 96, 
+        0, 2048, 0,
+        windingIndices,
+        0, 128, 128,
+        1, 1, 2, 
+        DRP_Neutral,
+        &dlv_stonebrick_tim,
+        0, 0, 128, 128
+    );
+
     TiledTexturedPolyObject* slateFloor = CreateTiledTexturedPolyObjectFT4(
         544, 0, -160, 
         0, 0, 0,
         windingIndices,
         128, 0, 128,
         3, 1, 2, 
+        DRP_Low,
+        &dlv_slate_tim,
+        0, 127, 128, 128
+    );
+
+    TiledTexturedPolyObject* slateFloor1 = CreateTiledTexturedPolyObjectFT4(
+        544, -128, 96, 
+        0, 0, 0,
+        windingIndices,
+        128, 0, 128,
+        3, 1, 1, 
         DRP_Low,
         &dlv_slate_tim,
         0, 127, 128, 128
@@ -1142,7 +1182,9 @@ int main(void) {
     activeTexPolygons[4] = longFloor;
 
     activeTiledTexPolygons[0] = tiledWall;
-    activeTiledTexPolygons[1] = slateFloor;
+    activeTiledTexPolygons[1] = tiledWall1;
+    activeTiledTexPolygons[2] = slateFloor;
+    activeTiledTexPolygons[3] = slateFloor1;
 
 
     // Should really do something about these "constructors". They're really long
@@ -1161,6 +1203,7 @@ int main(void) {
     testPolyBox->polys[5] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
 
     activeCollisionPolyBoxes[0] = testPolyBox;
+    activeCollisionBoxes[0] = &testPolyBox->colBox;
 
 
     StaticCollisionPolyBox* testPolyBox2 = CreateCollisionPolyBox(
@@ -1177,6 +1220,7 @@ int main(void) {
     testPolyBox2->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
 
     activeCollisionPolyBoxes[1] = testPolyBox2;
+    activeCollisionBoxes[1] = &testPolyBox2->colBox;
 
 
     StaticCollisionPolyBox* testPolyBox3 = CreateCollisionPolyBox(
@@ -1193,6 +1237,7 @@ int main(void) {
     testPolyBox3->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
 
     activeCollisionPolyBoxes[2] = testPolyBox3;
+    activeCollisionBoxes[2] = &testPolyBox3->colBox;
 
 
     StaticCollisionPolyBox* testPolyBox4 = CreateCollisionPolyBox(
@@ -1209,6 +1254,7 @@ int main(void) {
     testPolyBox4->polys[5] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
 
     activeCollisionPolyBoxes[3] = testPolyBox4;
+    activeCollisionBoxes[3] = &testPolyBox4->colBox;
 
 
     StaticCollisionPolyBox* testPolyBox5 = CreateCollisionPolyBox(
@@ -1225,6 +1271,7 @@ int main(void) {
     testPolyBox5->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
 
     activeCollisionPolyBoxes[4] = testPolyBox5;
+    activeCollisionBoxes[4] = &testPolyBox5->colBox;
 
 
     StaticCollisionPolyBox* testPolyBox6 = CreateCollisionPolyBox(
@@ -1241,6 +1288,18 @@ int main(void) {
     testPolyBox6->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
 
     activeCollisionPolyBoxes[5] = testPolyBox6;
+    activeCollisionBoxes[5] = &testPolyBox6->colBox;
+
+    CollisionBox* wallTestCollision = calloc(1, sizeof(CollisionBox));
+    setVector(&wallTestCollision->gridPos, 544, 0, 96);
+    setVector(&wallTestCollision->dimensions, 384, 128, 128);
+    activeCollisionBoxes[6] = wallTestCollision;
+
+    CollisionBox* wallTestCollision1 = calloc(1, sizeof(CollisionBox));
+    setVector(&wallTestCollision1->gridPos, 928, 0, -160);
+    setVector(&wallTestCollision1->dimensions, 64, 128, 256);
+    activeCollisionBoxes[7] = wallTestCollision1;
+
 
     // Wait for VBLANK to allow controller to initialise (otherwise it starts off with pad->buttons being FFFF for the first frame)
     VSync(0);
@@ -1412,7 +1471,7 @@ int main(void) {
         CameraTransformMatrix(player->cameraPtr, &testPolyFloor->obj.transform);
         AddMultiPoly(testPolyFloor, cdb->ot);
 
-        for (size_t i = 0; i < ACTIVECOLBOXCOUNT; i++) {
+        for (size_t i = 0; i < ACTIVEPOLYCOLBOXCOUNT; i++) {
             CameraTransformMatrix(player->cameraPtr, &activeCollisionPolyBoxes[i]->transform);
             AddStaticPolyBox(activeCollisionPolyBoxes[i], cdb->ot);
         }
@@ -1421,7 +1480,7 @@ int main(void) {
         //FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
 
         //FntPrint("%x\n", heapStart);
-
+        
         DrawFrame();
     }
 
