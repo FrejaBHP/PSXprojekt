@@ -3,8 +3,9 @@
 
 
 PhysicsResolutionEntry PhysicsResolutionTable[16] = { 0 };
-StaticCollisionPolyBox* activeCollisionPolyBoxes[ACTIVEPOLYCOLBOXCOUNT] = { 0 };
-CollisionBox* activeCollisionBoxes[ACTIVECOLBOXES] = { 0 };
+
+GenericPtrList* activeCollisionPolyBoxes = { 0 };
+GenericPtrList* activeCollisionBoxes = { 0 };
 
 VECTOR playerSimulatedPosition;
 VECTOR playerSimulatedPositionFinal;
@@ -83,9 +84,9 @@ bool CanPlayerStep(const VECTOR* position) {
         (position->vz >> 12) + player->poly.boxWidth / 2
     };
 
-    for (size_t i = 0; i < ACTIVECOLBOXES; i++) {
+    for (size_t i = 0; i < activeCollisionBoxes->count; i++) {
         CollisionOverlaps overlaps = { 0 };
-        ScanForOverlaps(&gridMins, &gridMaxs, activeCollisionBoxes[i], &overlaps);
+        ScanForOverlaps(&gridMins, &gridMaxs, activeCollisionBoxes->array[i], &overlaps);
 
         if (overlaps.x == true && overlaps.y == true && overlaps.z == true) {
             canStep = false;
@@ -120,33 +121,34 @@ void SimulatePlayerMovementCollision() {
 
     size_t overlapsCount = 0;
 
-    for (size_t i = 0; i < ACTIVECOLBOXES; i++) {
+    for (size_t i = 0; i < activeCollisionBoxes->count; i++) {
         CollisionOverlaps overlaps = { 0 };
         bool stepping = false;
 
-        ScanForOverlaps(&playerSimulatedPositionGridMins, &playerSimulatedPositionGridMaxs, activeCollisionBoxes[i], &overlaps);
+        ScanForOverlaps(&playerSimulatedPositionGridMins, &playerSimulatedPositionGridMaxs, activeCollisionBoxes->array[i], &overlaps);
 
         //FntPrint("%d %d %d\n", intersectsX, intersectsY, intersectsZ);
 
         // If player is at least above or underneath a collision box
         if (overlaps.x && overlaps.z) {
+            CollisionBox* colBox = activeCollisionBoxes->array[i];
             // If player is actually trying to enter collision box
             if (overlaps.y) {
                 //FntPrint("%d\n", i);
                 
                 if (player->poly.obj.velocity.vy == 0 && isPlayerOnFloor && !playerHasStepped) {
-                    long stepheight = playerSimulatedPositionGridMins.vy - activeCollisionBoxes[i]->gridPos.vy + activeCollisionBoxes[i]->dimensions.vy;
+                    long stepheight = playerSimulatedPositionGridMins.vy - colBox->gridPos.vy + colBox->dimensions.vy;
                     //FntPrint("StepHeight: %03d\n", stepheight);
 
                     if (stepheight <= 32 && stepheight > 0) {
                         // Second simulated position to check if player is trying to step up into geometry
                         VECTOR playerStepPosition = playerSimulatedPositionFinal;
-                        playerStepPosition.vy = (activeCollisionBoxes[i]->gridPos.vy * ONE) - (activeCollisionBoxes[i]->dimensions.vy * ONE);
+                        playerStepPosition.vy = (colBox->gridPos.vy * ONE) - (colBox->dimensions.vy * ONE);
 
                         if (CanPlayerStep(&playerStepPosition)) {
                             stepping = true;
                             playerHasStepped = true;
-                            playerSimulatedPositionFinal.vy = (activeCollisionBoxes[i]->gridPos.vy * ONE) - (activeCollisionBoxes[i]->dimensions.vy * ONE);
+                            playerSimulatedPositionFinal.vy = (colBox->gridPos.vy * ONE) - (colBox->dimensions.vy * ONE);
                             isPlayerOnCollision = true;
                         }
                     }
@@ -157,14 +159,14 @@ void SimulatePlayerMovementCollision() {
                     long bleed[3]; // X Y Z
                     bool ignoreY = false;
 
-                    long bleedXPos = abs((playerSimulatedPositionFinal.vx + ((player->poly.boxWidth / 2) * ONE)) - (activeCollisionBoxes[i]->gridPos.vx * ONE));
-                    long bleedXNeg = abs((playerSimulatedPositionFinal.vx - ((player->poly.boxWidth / 2) * ONE)) - ((activeCollisionBoxes[i]->gridPos.vx * ONE) + (activeCollisionBoxes[i]->dimensions.vx * ONE)));
+                    long bleedXPos = abs((playerSimulatedPositionFinal.vx + ((player->poly.boxWidth / 2) * ONE)) - (colBox->gridPos.vx * ONE));
+                    long bleedXNeg = abs((playerSimulatedPositionFinal.vx - ((player->poly.boxWidth / 2) * ONE)) - ((colBox->gridPos.vx * ONE) + (colBox->dimensions.vx * ONE)));
                     
-                    long bleedYPos = abs(((activeCollisionBoxes[i]->gridPos.vy * ONE) - (activeCollisionBoxes[i]->dimensions.vy * ONE)) - playerSimulatedPositionFinal.vy);
-                    long bleedYNeg = abs((activeCollisionBoxes[i]->gridPos.vy * ONE) - (playerSimulatedPositionFinal.vy - ((player->poly.boxHeight) * ONE)));
+                    long bleedYPos = abs(((colBox->gridPos.vy * ONE) - (colBox->dimensions.vy * ONE)) - playerSimulatedPositionFinal.vy);
+                    long bleedYNeg = abs((colBox->gridPos.vy * ONE) - (playerSimulatedPositionFinal.vy - ((player->poly.boxHeight) * ONE)));
 
-                    long bleedZPos = abs((playerSimulatedPositionFinal.vz + ((player->poly.boxWidth / 2) * ONE)) - (activeCollisionBoxes[i]->gridPos.vz * ONE));
-                    long bleedZNeg = abs((playerSimulatedPositionFinal.vz - ((player->poly.boxWidth / 2) * ONE)) - ((activeCollisionBoxes[i]->gridPos.vz * ONE) + (activeCollisionBoxes[i]->dimensions.vz * ONE)));
+                    long bleedZPos = abs((playerSimulatedPositionFinal.vz + ((player->poly.boxWidth / 2) * ONE)) - (colBox->gridPos.vz * ONE));
+                    long bleedZNeg = abs((playerSimulatedPositionFinal.vz - ((player->poly.boxWidth / 2) * ONE)) - ((colBox->gridPos.vz * ONE) + (colBox->dimensions.vz * ONE)));
 
                     if (bleedXPos <= bleedXNeg) {
                         bleed[0] = -bleedXPos;
@@ -225,7 +227,7 @@ void SimulatePlayerMovementCollision() {
                 }
             }
             // If on the box
-            else if (playerSimulatedPositionGridMins.vy == activeCollisionBoxes[i]->gridPos.vy - activeCollisionBoxes[i]->dimensions.vy
+            else if (playerSimulatedPositionGridMins.vy == colBox->gridPos.vy - colBox->dimensions.vy
                 && player->poly.obj.velocity.vy == 0) {
 
                 if (overlapsCount < 16) {
@@ -272,12 +274,6 @@ void SortAndResolveOverlaps(const size_t numEntries) {
 
         ResolveOverlaps(SortedTable, numEntries);
     }
-    
-    
-    // Sort if X or Z resolution should be done first based on (possibly) player velocity
-    // Move resolution logic to this function
-    // Do a second ScanForOverlaps on the i > 0 object in this function's expected for loop, to check if the previous plane resolution avoids a Y overlap
-    // Otherwise resolve as normal
 }
 
 void ResolveOverlaps(const PhysicsResolutionEntry* table, const size_t numEntries) {
@@ -297,11 +293,13 @@ void ResolveOverlaps(const PhysicsResolutionEntry* table, const size_t numEntrie
         };
 
         CollisionOverlaps overlaps = { 0 };
-        ScanForOverlaps(&playerSimulatedPositionGridMins, &playerSimulatedPositionGridMaxs, activeCollisionBoxes[table[i].objIndex], &overlaps);
+        ScanForOverlaps(&playerSimulatedPositionGridMins, &playerSimulatedPositionGridMaxs, activeCollisionBoxes->array[table[i].objIndex], &overlaps);
 
         if (!overlaps.x && !overlaps.y && !overlaps.z) {
             continue;
         }
+
+        CollisionBox* colBox = activeCollisionBoxes->array[table[i].objIndex];
 
         if (overlaps.x && overlaps.y && overlaps.z) {
             if (table[i].axis == 0) {
@@ -328,7 +326,7 @@ void ResolveOverlaps(const PhysicsResolutionEntry* table, const size_t numEntrie
             //FntPrint("Bleed Index: %d\n", table[i].axis);
             //FntPrint("Bleed Value: %d\n", table[i].value);
         }
-        else if (overlaps.x && overlaps.z && playerSimulatedPositionGridMins.vy == activeCollisionBoxes[table[i].objIndex]->gridPos.vy - activeCollisionBoxes[table[i].objIndex]->dimensions.vy
+        else if (overlaps.x && overlaps.z && playerSimulatedPositionGridMins.vy == colBox->gridPos.vy - colBox->dimensions.vy
             && player->poly.obj.velocity.vy == 0) {
 
             //FntPrint("Standing on colbox Index: %d\n", table[i].objIndex);
@@ -338,4 +336,18 @@ void ResolveOverlaps(const PhysicsResolutionEntry* table, const size_t numEntrie
     }
 
     player->poly.obj.position = playerSimulatedPositionFinal;
+}
+
+void InitPhysicsLists() {
+    activeCollisionPolyBoxes = CreateGenericPtrList();
+    activeCollisionBoxes = CreateGenericPtrList();
+}
+
+void RegisterColPolyBox(StaticCollisionPolyBox* scpolybox) {
+    AddItemToGenericPtrList(&activeCollisionPolyBoxes, scpolybox);
+    RegisterCollisionBox(&scpolybox->colBox);
+}
+
+void RegisterCollisionBox(CollisionBox* colBox) {
+    AddItemToGenericPtrList(&activeCollisionBoxes, colBox);
 }

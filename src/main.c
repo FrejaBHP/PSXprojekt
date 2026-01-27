@@ -13,6 +13,8 @@
 #include "physics.h"
 #include "player.h"
 
+#include "clist.h"
+
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 #define setPosVToGrid(v, _x, _y, _z) \
 	(v)->vx = _x >> 12, (v)->vy = _y >> 12, (v)->vz = _z >> 12
@@ -43,7 +45,7 @@
 
 #define ACTIVEPOLYGONCOUNT 3
 #define ACTIVETEXPOLYGONCOUNT 5
-#define ACTIVETILEDTEXPOLYGONCOUNT 4
+#define ACTIVETILEDTEXPOLYGONCOUNT 5
 
 extern u_long __heap_start;
 u_long* heapStart = &__heap_start;
@@ -795,7 +797,6 @@ static void AddTiledPolyFTProper(TiledTexturedPolyObject* ttpobj, u_long* ot) {
         POLY_FT4* poly = (POLY_FT4*)ttpobj->polyObj.polyPtr;
 
         for (size_t i = 0; i < (ttpobj->polyObj.polyLength * ttpobj->polyObj.polySides); i += ttpobj->polyObj.polySides, ++poly) {
-            
             nclip = RotAverageNclip4(
                 &ttpobj->polyObj.verticesPtr[i + 0], &ttpobj->polyObj.verticesPtr[i + 1],
                 &ttpobj->polyObj.verticesPtr[i + 2], &ttpobj->polyObj.verticesPtr[i + 3],
@@ -975,6 +976,8 @@ int main(void) {
     int TPressed = 0;
     int AutoRotate = 1;
 
+    InitPhysicsLists();
+
     // Initialises the controllers with the Kernel library function. Max data buffer size is 34B
     InitPAD(pad0.dataBuffer, 34, pad1.dataBuffer, 34);
     StartPAD();
@@ -1076,36 +1079,6 @@ int main(void) {
         0, 127, 128, 128
     );
 
-    /*
-    TexturedPolyObject* tiledWall = CreateTexturedPolyObjectFT4(
-        192 + WALLHALF * 4 + DOORHALF * 3, 0, 96, 
-        0, 0, 0,
-        //6, 4, tWallVertices, cubeIndices,
-        5, 4, tiledHalfPanelVertices, windingIndices,
-        DRP_Neutral, 
-        false, 0, 0, true, 
-        &woodPanel_tim, 
-        //0, 0, 128, 128, 
-        0, 0, 64, 128, 
-        false,
-        0, 0, 64, 128
-    );
-    */
-
-    /*
-    TexturedPolyObject* tiledWall = CreateTexturedPolyObjectFT4(
-        192 + WALLHALF * 4 + DOORHALF * 3, 0, 96, 
-        0, 0, 0,
-        3, 4, tiledPanelVertices, windingIndices,
-        DRP_Neutral, 
-        false, 0, 0, true, 
-        &dlv_stonebrick_tim, 
-        0, 0, 128, 128, 
-        false,
-        0, 0, 128, 128
-    );
-    */
-
     TiledTexturedPolyObject* tiledWall = CreateTiledTexturedPolyObjectFT4(
         544, 0, 96, 
         0, 0, 0,
@@ -1140,6 +1113,17 @@ int main(void) {
     );
 
     TiledTexturedPolyObject* slateFloor1 = CreateTiledTexturedPolyObjectFT4(
+        544, -128, 96, 
+        0, 0, 0,
+        windingIndices,
+        128, 0, 128,
+        3, 1, 1, 
+        DRP_Low,
+        &dlv_slate_tim,
+        0, 127, 128, 128
+    );
+
+    TiledTexturedPolyObject* slateFloor2 = CreateTiledTexturedPolyObjectFT4(
         544, -128, 96, 
         0, 0, 0,
         windingIndices,
@@ -1185,6 +1169,7 @@ int main(void) {
     activeTiledTexPolygons[1] = tiledWall1;
     activeTiledTexPolygons[2] = slateFloor;
     activeTiledTexPolygons[3] = slateFloor1;
+    activeTiledTexPolygons[4] = slateFloor2;
 
 
     // Should really do something about these "constructors". They're really long
@@ -1201,9 +1186,7 @@ int main(void) {
     testPolyBox->polys[3] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
     testPolyBox->polys[4] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
     testPolyBox->polys[5] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
-
-    activeCollisionPolyBoxes[0] = testPolyBox;
-    activeCollisionBoxes[0] = &testPolyBox->colBox;
+    RegisterColPolyBox(testPolyBox);
 
 
     StaticCollisionPolyBox* testPolyBox2 = CreateCollisionPolyBox(
@@ -1218,9 +1201,7 @@ int main(void) {
     testPolyBox2->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox2->polys[4] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox2->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
-
-    activeCollisionPolyBoxes[1] = testPolyBox2;
-    activeCollisionBoxes[1] = &testPolyBox2->colBox;
+    RegisterColPolyBox(testPolyBox2);
 
 
     StaticCollisionPolyBox* testPolyBox3 = CreateCollisionPolyBox(
@@ -1235,9 +1216,7 @@ int main(void) {
     testPolyBox3->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox3->polys[4] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox3->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
-
-    activeCollisionPolyBoxes[2] = testPolyBox3;
-    activeCollisionBoxes[2] = &testPolyBox3->colBox;
+    RegisterColPolyBox(testPolyBox3);
 
 
     StaticCollisionPolyBox* testPolyBox4 = CreateCollisionPolyBox(
@@ -1252,9 +1231,7 @@ int main(void) {
     testPolyBox4->polys[3] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
     testPolyBox4->polys[4] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
     testPolyBox4->polys[5] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
-
-    activeCollisionPolyBoxes[3] = testPolyBox4;
-    activeCollisionBoxes[3] = &testPolyBox4->colBox;
+    RegisterColPolyBox(testPolyBox4);
 
 
     StaticCollisionPolyBox* testPolyBox5 = CreateCollisionPolyBox(
@@ -1269,9 +1246,7 @@ int main(void) {
     testPolyBox5->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox5->polys[4] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
     testPolyBox5->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
-
-    activeCollisionPolyBoxes[4] = testPolyBox5;
-    activeCollisionBoxes[4] = &testPolyBox5->colBox;
+    RegisterColPolyBox(testPolyBox5);
 
 
     StaticCollisionPolyBox* testPolyBox6 = CreateCollisionPolyBox(
@@ -1286,19 +1261,33 @@ int main(void) {
     testPolyBox6->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox6->polys[4] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
     testPolyBox6->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    RegisterColPolyBox(testPolyBox6);
 
-    activeCollisionPolyBoxes[5] = testPolyBox6;
-    activeCollisionBoxes[5] = &testPolyBox6->colBox;
+
+    StaticCollisionPolyBox* testPolyBox7 = CreateCollisionPolyBox(
+        784, -112, 256,
+        0, 0, 0,
+        platformVertices
+    );
+
+    testPolyBox7->polys[0] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox7->polys[1] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox7->polys[2] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox7->polys[3] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox7->polys[4] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
+    testPolyBox7->polys[5] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    RegisterColPolyBox(testPolyBox7);
+
 
     CollisionBox* wallTestCollision = calloc(1, sizeof(CollisionBox));
     setVector(&wallTestCollision->gridPos, 544, 0, 96);
     setVector(&wallTestCollision->dimensions, 384, 128, 128);
-    activeCollisionBoxes[6] = wallTestCollision;
+    RegisterCollisionBox(wallTestCollision);
 
     CollisionBox* wallTestCollision1 = calloc(1, sizeof(CollisionBox));
     setVector(&wallTestCollision1->gridPos, 928, 0, -160);
     setVector(&wallTestCollision1->dimensions, 64, 128, 256);
-    activeCollisionBoxes[7] = wallTestCollision1;
+    RegisterCollisionBox(wallTestCollision1);
 
 
     // Wait for VBLANK to allow controller to initialise (otherwise it starts off with pad->buttons being FFFF for the first frame)
@@ -1471,9 +1460,10 @@ int main(void) {
         CameraTransformMatrix(player->cameraPtr, &testPolyFloor->obj.transform);
         AddMultiPoly(testPolyFloor, cdb->ot);
 
-        for (size_t i = 0; i < ACTIVEPOLYCOLBOXCOUNT; i++) {
-            CameraTransformMatrix(player->cameraPtr, &activeCollisionPolyBoxes[i]->transform);
-            AddStaticPolyBox(activeCollisionPolyBoxes[i], cdb->ot);
+        for (size_t i = 0; i < activeCollisionPolyBoxes->count; i++) {
+            StaticCollisionPolyBox* scpolybox = activeCollisionPolyBoxes->array[i];
+            CameraTransformMatrix(player->cameraPtr, &scpolybox->transform);
+            AddStaticPolyBox(scpolybox, cdb->ot);
         }
 
         //FntPrint("PT: %04d, %04d, %04d\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);

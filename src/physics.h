@@ -1,14 +1,12 @@
 #ifndef __PHYSICS_H
 #define __PHYSICS_H
 
-#define ACTIVEPOLYCOLBOXCOUNT 6
-#define ACTIVECOLBOXES 8
-
 #include <stdlib.h>
 #include <libgte.h>
 #include <libgpu.h>
 
 #include "objects.h"
+#include "clist.h"
 
 typedef struct PhysicsResolutionEntry {
     u_short objIndex;
@@ -18,13 +16,17 @@ typedef struct PhysicsResolutionEntry {
 } PhysicsResolutionEntry;
 
 extern PhysicsResolutionEntry PhysicsResolutionTable[16];
-extern StaticCollisionPolyBox* activeCollisionPolyBoxes[ACTIVEPOLYCOLBOXCOUNT];
-extern CollisionBox* activeCollisionBoxes[ACTIVECOLBOXES];
+extern GenericPtrList* activeCollisionPolyBoxes;
+extern GenericPtrList* activeCollisionBoxes;
 
 void ScanForOverlaps(const VECTOR* pMins, const VECTOR* pMaxs, const CollisionBox* colBox, CollisionOverlaps* overlaps);
 bool CanPlayerStep(const VECTOR* position);
 void SimulatePlayerMovementCollision();
 void SortAndResolveOverlaps(const size_t numEntries);
 void ResolveOverlaps(const PhysicsResolutionEntry* table, size_t numEntries);
+
+void InitPhysicsLists();
+void RegisterColPolyBox(StaticCollisionPolyBox* scpolybox);
+void RegisterCollisionBox(CollisionBox* colBox);
 
 #endif
