@@ -18,8 +18,7 @@ typedef struct {
 } TIM_IMAGE;
 */
 
-#define OTSIZE 2048
-#define SPECPRIMSSIZE 256
+#define OTSIZE 1024
 #define RENDERX 320 // 512
 #define RENDERY 240
 
@@ -45,15 +44,13 @@ typedef struct DB {
     DRAWENV draw;
     DISPENV disp;
     u_long ot[OTSIZE];
+	u_char primBuffer[32768];
 } DB;
 
 extern DB db[2];
 extern DB* cdb;
-//extern DR_MODE* drModeList;
-//extern DR_MODE resetDRMODE;
-//extern RECT resetRect;
-//extern u_char curdrModeIndex;
-//extern u_char curTPage;
+extern size_t cdbIndex;
+extern u_char* primPtr;
 
 extern MATRIX globalRenderTransform;
 

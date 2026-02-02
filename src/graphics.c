@@ -1,12 +1,10 @@
 #include "graphics.h"
+#include "player.h"
 
 DB db[2] = { 0 };
 DB* cdb = 0;
-//DR_MODE* drModeList = 0;
-//DR_MODE resetDRMODE;
-//RECT resetRect = { 0, 0, 0, 0 };
-//u_char curdrModeIndex = 0;
-//u_char curTPage = 0;
+size_t cdbIndex = 0;
+u_char* primPtr = 0;
 
 MATRIX globalRenderTransform = { 0 };
 
@@ -62,6 +60,8 @@ void InitGraphics() {
 
     db[0].draw.ofs[1] = 0;
     db[1].draw.ofs[1] = 256;
+    //db[0].draw.dfe = 1;
+    //db[1].draw.dfe = 1;
     db[0].draw.isbg = 1;
     db[1].draw.isbg = 1;
     db[0].draw.dtd = 1;
@@ -83,6 +83,11 @@ void InitGraphics() {
 
     PutDrawEnv(&db[0].draw);
     PutDispEnv(&db[0].disp);
+
+    cdb = &db[0];
+    primPtr = cdb->primBuffer;
+    ClearOTagR(db[0].ot, OTSIZE);
+    ClearOTagR(db[1].ot, OTSIZE);
 
     DrawSync(0);
 
@@ -116,14 +121,16 @@ void DrawFrame() {
     FntPrint("CM1: %04d, %04d, %04d\n", player->cameraPtr->transform.m[1][0], player->cameraPtr->transform.m[1][1], player->cameraPtr->transform.m[1][2]);
     FntPrint("CM2: %04d, %04d, %04d\n", player->cameraPtr->transform.m[2][0], player->cameraPtr->transform.m[2][1], player->cameraPtr->transform.m[2][2]);
     FntPrint("CT0: %04d, %04d, %04d\n\n", player->cameraPtr->transform.t[0], player->cameraPtr->transform.t[1], player->cameraPtr->transform.t[2]);
+
+    FntPrint("PM0: %04d, %04d, %04d\n", player->poly.obj.transform.m[0][0], player->poly.obj.transform.m[0][1], player->poly.obj.transform.m[0][2]);
+    FntPrint("PM1: %04d, %04d, %04d\n", player->poly.obj.transform.m[1][0], player->poly.obj.transform.m[1][1], player->poly.obj.transform.m[1][2]);
+    FntPrint("PM2: %04d, %04d, %04d\n", player->poly.obj.transform.m[2][0], player->poly.obj.transform.m[2][1], player->poly.obj.transform.m[2][2]);
+    FntPrint("PT0: %04d, %04d, %04d\n\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
     */
 
-    //FntPrint("PM0: %04d, %04d, %04d\n", player->poly.obj.transform.m[0][0], player->poly.obj.transform.m[0][1], player->poly.obj.transform.m[0][2]);
-    //FntPrint("PM1: %04d, %04d, %04d\n", player->poly.obj.transform.m[1][0], player->poly.obj.transform.m[1][1], player->poly.obj.transform.m[1][2]);
-    //FntPrint("PM2: %04d, %04d, %04d\n", player->poly.obj.transform.m[2][0], player->poly.obj.transform.m[2][1], player->poly.obj.transform.m[2][2]);
     //FntPrint("PV : %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
     //FntPrint("PP : %06d, %06d, %06d\n", player->poly.obj.position.vx, player->poly.obj.position.vy, player->poly.obj.position.vz);
-    //FntPrint("PT0: %06d, %06d, %06d\n\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
+    
     
     //FntPrint("HDif: %d\n", heightDif);
     //FntPrint("Space: %d\n", occupiesSameSpace);
@@ -139,8 +146,17 @@ void DrawFrame() {
 
     // Draw from ordering table
     DrawOTag(&cdb->ot[OTSIZE - 1]);
-    //curdrModeIndex = 0;
     
     // Draw debug text set in SetDumpFnt with value -1
     FntFlush(-1);
+
+    // Swap used buffer
+    cdb = (cdb == &db[0]) ? &db[1] : &db[0];
+    cdbIndex = (cdbIndex == 0) ? 1 : 0;
+    primPtr = cdb->primBuffer;
+
+    // Initialises a linked list for OT / clears (zeroes?) OT for current frame in reverse order (faster)
+    // "When an OT is initialized, the polygons are unlinked, and only then is a re-sort possible. 
+    // Therefore, it is always necessary to initialize an OT prior to executing a sort." - Library Overview, 10-8
+    ClearOTagR(cdb->ot, OTSIZE);
 }

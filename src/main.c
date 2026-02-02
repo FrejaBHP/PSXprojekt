@@ -45,7 +45,7 @@
 
 #define ACTIVEPOLYGONCOUNT 3
 #define ACTIVETEXPOLYGONCOUNT 5
-#define ACTIVETILEDTEXPOLYGONCOUNT 5
+#define ACTIVETILEDTEXPOLYGONCOUNT 4
 
 extern u_long __heap_start;
 u_long* heapStart = &__heap_start;
@@ -191,13 +191,13 @@ void UpdatePad(GamePad* pad) {
 // Lazy and likely fragile attempt at influencing sorting order
 static void OrderThing(long* otz, int dp) {
     if (dp == DRP_Low) {
-        if (*otz + 256 < OTSIZE) {
-            *otz += 256;
+        if (*otz + 64 < OTSIZE) {
+            *otz += 64;
         }
     }
     else if (dp == DRP_High) {
-        if (*otz - 256 < OTSIZE) {
-            *otz -= 256;
+        if (*otz - 64 < OTSIZE) {
+            *otz -= 64;
         }
     }
 }
@@ -257,7 +257,7 @@ PolyObject* CreatePolyObjectF4(long posX, long posY, long posZ, short rotX, shor
         //platform->add = &AddPolyF;
 
         for (size_t i = 0; i < plen; ++i) {
-            SetPolyF4(&poly[i]);
+            setPolyF4(&poly[i]);
             setRGB0(&poly[i], col[i].r, col[i].g, col[i].b);
         }
 
@@ -270,7 +270,7 @@ PolyObject* CreatePolyObjectF4(long posX, long posY, long posZ, short rotX, shor
 
 POLY_FT4* CreateTexturedPolygon4(TIM_IMAGE* tim, u_char u0, u_char v0, u_char u1, u_char v1) {
     POLY_FT4* poly = calloc(1, sizeof(POLY_FT4));
-    SetPolyFT4(poly);
+    setPolyFT4(poly);
 
     poly->tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y);
     poly->clut = getClut(tim->crect->x, tim->crect->y);
@@ -296,7 +296,7 @@ StaticCollisionPolyBox* CreateCollisionPolyBox(
     scpolybox->colBox.dimensions.vy = -scpolybox->colBox.dimensions.vy;
     scpolybox->indices = cubeIndices;
 
-    for (size_t i = 0; i < 6; i++) {
+    for (size_t i = 0; i < 12; i++) {
         scpolybox->polys[i] = NULL;
     }
 
@@ -342,7 +342,7 @@ TexturedPolyObject* CreateTexturedPolyObjectFT4(
         //platform->add = &AddPolyF;
 
         for (size_t i = 0; i < plen; ++i) {
-            SetPolyFT4(&poly[i]);
+            setPolyFT4(&poly[i]);
             poly[i].tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y);
             poly[i].clut = getClut(tim->crect->x, tim->crect->y);
             setRGB0(&poly[i], colour.r, colour.g, colour.b);
@@ -380,7 +380,7 @@ TiledTexturedPolyObject* CreateTiledTexturedPolyObjectFT4(
 
         ttpobj->totalPolys = tileX * tileY * tileZ;
 
-        POLY_FT4* polys = calloc(ttpobj->totalPolys, sizeof(POLY_FT4));
+        POLY_FT4* polys = calloc(ttpobj->totalPolys * 2, sizeof(POLY_FT4));
         // Can be heavily optimised by reusing vertices. Check notebook!
         SVECTOR* tiledVerts = calloc(ttpobj->totalPolys * 4, sizeof(SVECTOR));
 
@@ -391,11 +391,17 @@ TiledTexturedPolyObject* CreateTiledTexturedPolyObjectFT4(
         ttpobj->polyObj.verticesPtr = tiledVerts;
 
         for (size_t i = 0; i < ttpobj->totalPolys; ++i) {
-            SetPolyFT4(&polys[i]);
+            setPolyFT4(&polys[i]);
             polys[i].tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y);
             polys[i].clut = getClut(tim->crect->x, tim->crect->y);
             setRGB0(&polys[i], colour.r, colour.g, colour.b);
             setUVWH(&polys[i], u0, v0, uvwidth, uvheight);
+
+            setPolyFT4(&polys[i + ttpobj->totalPolys]);
+            polys[i + ttpobj->totalPolys].tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y);
+            polys[i + ttpobj->totalPolys].clut = getClut(tim->crect->x, tim->crect->y);
+            setRGB0(&polys[i + ttpobj->totalPolys], colour.r, colour.g, colour.b);
+            setUVWH(&polys[i + ttpobj->totalPolys], u0, v0, uvwidth, uvheight);
         }
 
         RotMatrix_gte(&ttpobj->polyObj.obj.rotation, &ttpobj->polyObj.obj.transform);
@@ -508,7 +514,7 @@ TestTileMultiPoly* CreateTestMultiPoly(
 
         POLY_FT4* poly = calloc(tmp->totalPolys, sizeof(POLY_FT4));
         for (size_t i = 0; i < tmp->totalPolys; ++i) {
-            SetPolyFT4(&poly[i]);
+            setPolyFT4(&poly[i]);
             poly[i].tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y);
             poly[i].clut = getClut(tim->crect->x, tim->crect->y);
             setRGB0(&poly[i], colour.r, colour.g, colour.b);
@@ -573,7 +579,7 @@ void CreatePlayer(CVECTOR* col) {
     player = calloc(1, sizeof(PlayerObject));
 
     CameraObject* camera = calloc(1, sizeof(CameraObject));
-    POLY_F4* pplayer = calloc(6, sizeof(POLY_F4));
+    POLY_F4* pplayer = calloc(12, sizeof(POLY_F4));
     VECTOR pos = { 0, 0, 0 };
 
     if (player != NULL) {
@@ -596,8 +602,11 @@ void CreatePlayer(CVECTOR* col) {
         }
 
         for (size_t i = 0; i < 6; ++i) {
-            SetPolyF4(&pplayer[i]);
+            setPolyF4(&pplayer[i]);
             setRGB0(&pplayer[i], col[i].r, col[i].g, col[i].b);
+
+            setPolyF4(&pplayer[i + 6]);
+            setRGB0(&pplayer[i + 6], col[i].r, col[i].g, col[i].b);
         }
 
         RotMatrix_gte(&player->poly.obj.rotation, &player->poly.obj.transform);
@@ -642,12 +651,43 @@ static void CameraTransformMatrix(CameraObject* camera, MATRIX* matrix) {
     gte_SetTransMatrix(&globalRenderTransform);
 }
 
+static void UpdatePlayerCamera(VECTOR* tPos, VECTOR* cPos, SVECTOR* cRot) {
+    RotMatrix_gte(cRot, &player->cameraPtr->transform);
+
+    tPos->vx = player->poly.obj.position.vx >> 12;
+    tPos->vy = player->poly.obj.position.vy >> 12;
+    tPos->vz = player->poly.obj.position.vz >> 12;
+
+    player->cameraPtr->position = player->poly.obj.position;
+    player->cameraPtr->position.vy -= PLAYERHEIGHT * ONE * 2;
+    player->cameraPtr->position.vz -= CAMERADISTANCE * ONE;
+
+    cPos->vx = -player->cameraPtr->position.vx >> 12;
+    cPos->vy = -player->cameraPtr->position.vy >> 12;
+    cPos->vz = -player->cameraPtr->position.vz >> 12;
+
+    ApplyMatrixLV(&player->cameraPtr->transform, cPos, cPos);
+    TransMatrix(&player->cameraPtr->transform, cPos);
+    
+    gte_SetRotMatrix(&player->cameraPtr->transform);
+    gte_SetTransMatrix(&player->cameraPtr->transform);
+}
+
 static void AddPolyF(PolyObject* pobj, u_long* ot) {
     long p, otz, flg;
     int nclip;
 
     if (pobj->polySides == 4) {
-        POLY_F4* poly = (POLY_F4*)pobj->polyPtr;
+        size_t offset;
+
+        if (cdbIndex == 0) {
+            offset = 0;
+        }
+        else {
+            offset = pobj->polyLength;
+        }
+
+        POLY_F4* poly = (POLY_F4*)pobj->polyPtr + offset;
 
         for (size_t i = 0; i < (pobj->polyLength * pobj->polySides); i += pobj->polySides, ++poly) {
             // Non-Average version (RotNclip4) presents layering issues, at least tested on floor against Average cube
@@ -663,7 +703,7 @@ static void AddPolyF(PolyObject* pobj, u_long* ot) {
             
             if ((otz > 0) && (otz < OTSIZE)) {
                 OrderThing(&otz, pobj->drPrio);
-                AddPrim(&ot[otz], poly);
+                addPrim(&ot[otz], poly);
             }
         }
     }
@@ -683,7 +723,7 @@ static void AddPolyF(PolyObject* pobj, u_long* ot) {
 
             if ((otz > 0) && (otz < OTSIZE)) {
                 OrderThing(&otz, pobj->drPrio);
-                AddPrim(&ot[otz], poly);
+                addPrim(&ot[otz], poly);
             }
         }
     }
@@ -695,7 +735,16 @@ static void AddPolyFT(TexturedPolyObject* tpobj, u_long* ot) {
     int nclip;
 
     if (tpobj->polyObj.polySides == 4) {
-        POLY_FT4* poly = (POLY_FT4*)tpobj->polyObj.polyPtr;
+        size_t offset;
+
+        if (cdbIndex == 0) {
+            offset = 0;
+        }
+        else {
+            offset = tpobj->polyObj.polyLength;
+        }
+
+        POLY_FT4* poly = (POLY_FT4*)tpobj->polyObj.polyPtr + offset;
 
         for (size_t i = 0; i < (tpobj->polyObj.polyLength * tpobj->polyObj.polySides); i += tpobj->polyObj.polySides, ++poly) {
             // Non-Average version (RotNclip4) presents layering issues, at least tested on floor against Average cube
@@ -711,7 +760,7 @@ static void AddPolyFT(TexturedPolyObject* tpobj, u_long* ot) {
             
             if ((otz > 0) && (otz < OTSIZE)) {
                 OrderThing(&otz, tpobj->polyObj.drPrio);
-                AddPrim(&ot[otz], poly);
+                addPrim(&ot[otz], poly);
 
                 /*
                 if (tpobj->repeating) {
@@ -746,7 +795,7 @@ static void AddPolyFT(TexturedPolyObject* tpobj, u_long* ot) {
 
             if ((otz > 0) && (otz < OTSIZE)) {
                 OrderThing(&otz, tpobj->polyObj.drPrio);
-                AddPrim(&ot[otz], poly);
+                addPrim(&ot[otz], poly);
             }
         }
     }
@@ -782,7 +831,7 @@ static void AddTiledPolyFT(TexturedPolyObject* tpobj, u_long* ot) {
             
             if ((otz > 0) && (otz < OTSIZE)) {
                 OrderThing(&otz, tpobj->polyObj.drPrio);
-                AddPrim(&ot[otz], poly);
+                addPrim(&ot[otz], poly);
             }
         }
     }
@@ -794,22 +843,48 @@ static void AddTiledPolyFTProper(TiledTexturedPolyObject* ttpobj, u_long* ot) {
     int nclip;
 
     if (ttpobj->polyObj.polySides == 4) {
-        POLY_FT4* poly = (POLY_FT4*)ttpobj->polyObj.polyPtr;
+        size_t offset;
+
+        if (cdbIndex == 0) {
+            offset = 0;
+        }
+        else {
+            offset = ttpobj->polyObj.polyLength;
+        }
+
+        POLY_FT4* poly = (POLY_FT4*)ttpobj->polyObj.polyPtr + offset;
 
         for (size_t i = 0; i < (ttpobj->polyObj.polyLength * ttpobj->polyObj.polySides); i += ttpobj->polyObj.polySides, ++poly) {
+            /*
             nclip = RotAverageNclip4(
                 &ttpobj->polyObj.verticesPtr[i + 0], &ttpobj->polyObj.verticesPtr[i + 1],
                 &ttpobj->polyObj.verticesPtr[i + 2], &ttpobj->polyObj.verticesPtr[i + 3],
                 (long*)&poly->x0, (long*)&poly->x1, (long*)&poly->x3, (long*)&poly->x2, &p, &otz, &flg
             );
+            */
+
+            gte_ldv3(&ttpobj->polyObj.verticesPtr[i + 0], &ttpobj->polyObj.verticesPtr[i + 1], &ttpobj->polyObj.verticesPtr[i + 3]);
+            gte_rtpt();
+            gte_nclip();
+            gte_stopz(&nclip);
             
             if (nclip <= 0) {
                 continue;
             }
+
+            //setPolyFT4(poly);
+
+            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+            gte_ldv0(&ttpobj->polyObj.verticesPtr[i + 2]);
+            gte_rtps();
+
+            gte_avsz4();
+            gte_stotz(&otz);
+            gte_stsxy(&poly->x3);
             
             if ((otz > 0) && (otz < OTSIZE)) {
                 OrderThing(&otz, ttpobj->polyObj.drPrio);
-                AddPrim(&ot[otz], poly);
+                addPrim(&ot[otz], poly);
             }
         }
     }
@@ -886,7 +961,7 @@ static void AddMultiPoly(TestTileMultiPoly* tmp, u_long* ot) {
         
         if ((otz > 0) && (otz < OTSIZE)) {
             //OrderThing(&otz, tpobj->polyObj.drPrio);
-            AddPrim(&ot[otz], poly);
+            addPrim(&ot[otz], poly);
         }
     }
 }
@@ -895,48 +970,77 @@ static void AddStaticPolyBox(StaticCollisionPolyBox* scpolybox, u_long* ot) {
     long p, otz, flg;
     int nclip;
 
+    POLY_FT4* poly;
+
+    size_t offset;
+
+    if (cdbIndex == 0) {
+        offset = 0;
+    }
+    else {
+        offset = 6;
+    }
+
     for (size_t i = 0; i < 6; ++i) {
-        if (scpolybox->polys[i] == NULL) {
+        poly = (POLY_FT4*)primPtr;
+
+        /*
+        if (scpolybox->polys[i + offset] == NULL) {
             continue;
         }
+        */
+
+        if (scpolybox->polys[i + offset] == NULL) {
+            primPtr += sizeof(POLY_FT4);
+            continue;
+        }
+        
 
         // Non-Average version (RotNclip4) presents layering issues, at least tested on floor against Average cube
+        /*
         nclip = RotAverageNclip4(
             &scpolybox->vertices[scpolybox->indices[(4 * i) + 0]], &scpolybox->vertices[scpolybox->indices[(4 * i) + 1]],
             &scpolybox->vertices[scpolybox->indices[(4 * i) + 2]], &scpolybox->vertices[scpolybox->indices[(4 * i) + 3]],
             (long*)&scpolybox->polys[i]->x0, (long*)&scpolybox->polys[i]->x1, (long*)&scpolybox->polys[i]->x3, (long*)&scpolybox->polys[i]->x2, &p, &otz, &flg
         );
+        */
+
+        gte_ldv3(&scpolybox->vertices[scpolybox->indices[(4 * i) + 0]], &scpolybox->vertices[scpolybox->indices[(4 * i) + 1]], &scpolybox->vertices[scpolybox->indices[(4 * i) + 3]]);
+        gte_rtpt();
+        gte_nclip();
+        gte_stopz(&nclip);
 
         if (nclip <= 0) {
+            primPtr += sizeof(POLY_FT4);
             continue;
         }
+
+        //setPolyFT4(scpolybox->polys[i + offset]);
+
+        setPolyFT4(poly);
+        poly->tpage = scpolybox->polys[i]->tpage;
+        poly->clut = scpolybox->polys[i]->clut;
+        setRGB0(poly, scpolybox->polys[i]->r0, scpolybox->polys[i]->g0, scpolybox->polys[i]->b0);
+        setUV4(poly, scpolybox->polys[i]->u0, scpolybox->polys[i]->v0, scpolybox->polys[i]->u1, scpolybox->polys[i]->v1, scpolybox->polys[i]->u2, scpolybox->polys[i]->v2, scpolybox->polys[i]->u3, scpolybox->polys[i]->v3);
+        //setUVWH(poly, u0, v0, uvwidth, uvheight);
+
+        //gte_stsxy3(&scpolybox->polys[i + offset]->x0, &scpolybox->polys[i + offset]->x1, &scpolybox->polys[i + offset]->x2);
+        gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+        gte_ldv0(&scpolybox->vertices[scpolybox->indices[(4 * i) + 2]]);
+        gte_rtps();
+
+        gte_avsz4();
+        gte_stotz(&otz);
+        //gte_stsxy(&scpolybox->polys[i + offset]->x3);
+        gte_stsxy(&poly->x3);
         
         if ((otz > 0) && (otz < OTSIZE)) {
-            AddPrim(&ot[otz], scpolybox->polys[i]);
+            //addPrim(&ot[otz], scpolybox->polys[i + offset]);
+            addPrim(&ot[otz], poly);
         }
+
+        primPtr += sizeof(POLY_FT4);
     }
-}
-
-static void UpdatePlayerCamera(VECTOR* tPos, VECTOR* cPos, SVECTOR* cRot) {
-    RotMatrix(cRot, &player->cameraPtr->transform);
-
-    tPos->vx = player->poly.obj.position.vx >> 12;
-    tPos->vy = player->poly.obj.position.vy >> 12;
-    tPos->vz = player->poly.obj.position.vz >> 12;
-
-    player->cameraPtr->position = player->poly.obj.position;
-    player->cameraPtr->position.vy -= PLAYERHEIGHT * ONE * 2;
-    player->cameraPtr->position.vz -= CAMERADISTANCE * ONE;
-
-    cPos->vx = -player->cameraPtr->position.vx >> 12;
-    cPos->vy = -player->cameraPtr->position.vy >> 12;
-    cPos->vz = -player->cameraPtr->position.vz >> 12;
-
-    ApplyMatrixLV(&player->cameraPtr->transform, cPos, cPos);
-    TransMatrix(&player->cameraPtr->transform, cPos);
-    
-    gte_SetRotMatrix(&player->cameraPtr->transform);
-    gte_SetTransMatrix(&player->cameraPtr->transform);
 }
 
 void resetCube(SVECTOR* rot, VECTOR* trans) {
@@ -1123,17 +1227,6 @@ int main(void) {
         0, 127, 128, 128
     );
 
-    TiledTexturedPolyObject* slateFloor2 = CreateTiledTexturedPolyObjectFT4(
-        544, -128, 96, 
-        0, 0, 0,
-        windingIndices,
-        128, 0, 128,
-        3, 1, 1, 
-        DRP_Low,
-        &dlv_slate_tim,
-        0, 127, 128, 128
-    );
-
     TestTileMultiPoly* testPoly = CreateTestMultiPoly(
         -320, 0, 96,
         0, 0, 0,
@@ -1169,7 +1262,6 @@ int main(void) {
     activeTiledTexPolygons[1] = tiledWall1;
     activeTiledTexPolygons[2] = slateFloor;
     activeTiledTexPolygons[3] = slateFloor1;
-    activeTiledTexPolygons[4] = slateFloor2;
 
 
     // Should really do something about these "constructors". They're really long
@@ -1186,6 +1278,13 @@ int main(void) {
     testPolyBox->polys[3] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
     testPolyBox->polys[4] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
     testPolyBox->polys[5] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
+
+    testPolyBox->polys[6] = CreateTexturedPolygon4(&woodDoor_tim, 63, 0, 64, 128);
+    testPolyBox->polys[7] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
+    testPolyBox->polys[8] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
+    testPolyBox->polys[9] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
+    testPolyBox->polys[10] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
+    testPolyBox->polys[11] = CreateTexturedPolygon4(&woodPanel_tim, 0, 0, 64, 128);
     RegisterColPolyBox(testPolyBox);
 
 
@@ -1201,6 +1300,13 @@ int main(void) {
     testPolyBox2->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox2->polys[4] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox2->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+
+    testPolyBox2->polys[6] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox2->polys[7] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox2->polys[8] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox2->polys[9] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox2->polys[10] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox2->polys[11] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     RegisterColPolyBox(testPolyBox2);
 
 
@@ -1216,6 +1322,13 @@ int main(void) {
     testPolyBox3->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox3->polys[4] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox3->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+
+    testPolyBox3->polys[6] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox3->polys[7] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox3->polys[8] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox3->polys[9] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox3->polys[10] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox3->polys[11] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     RegisterColPolyBox(testPolyBox3);
 
 
@@ -1231,6 +1344,13 @@ int main(void) {
     testPolyBox4->polys[3] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
     testPolyBox4->polys[4] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
     testPolyBox4->polys[5] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+
+    testPolyBox4->polys[6] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox4->polys[7] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox4->polys[8] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox4->polys[9] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox4->polys[10] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
+    testPolyBox4->polys[11] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
     RegisterColPolyBox(testPolyBox4);
 
 
@@ -1246,6 +1366,13 @@ int main(void) {
     testPolyBox5->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox5->polys[4] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
     testPolyBox5->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+
+    testPolyBox5->polys[6] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox5->polys[7] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox5->polys[8] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox5->polys[9] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox5->polys[10] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
+    testPolyBox5->polys[11] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     RegisterColPolyBox(testPolyBox5);
 
 
@@ -1261,6 +1388,13 @@ int main(void) {
     testPolyBox6->polys[3] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     testPolyBox6->polys[4] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
     testPolyBox6->polys[5] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+
+    testPolyBox6->polys[6] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox6->polys[7] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox6->polys[8] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox6->polys[9] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
+    testPolyBox6->polys[10] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
+    testPolyBox6->polys[11] = CreateTexturedPolygon4(&cobble_tim, 0, 127, 128, 128);
     RegisterColPolyBox(testPolyBox6);
 
 
@@ -1276,7 +1410,15 @@ int main(void) {
     testPolyBox7->polys[3] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
     testPolyBox7->polys[4] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
     testPolyBox7->polys[5] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+
+    testPolyBox7->polys[6] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox7->polys[7] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox7->polys[8] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox7->polys[9] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
+    testPolyBox7->polys[10] = CreateTexturedPolygon4(&dlv_metalpanel_tim, 0, 0, 128, 128);
+    testPolyBox7->polys[11] = CreateTexturedPolygon4(&dlv_slate_tim, 0, 128, 64, 64);
     RegisterColPolyBox(testPolyBox7);
+
 
 
     CollisionBox* wallTestCollision = calloc(1, sizeof(CollisionBox));
@@ -1429,36 +1571,40 @@ int main(void) {
 
         UpdatePlayerCamera(&rPos, &cPos, &rRot);
 
-        // Swap used buffer. This and the OT reset/population should be moved to DrawFrame eventually when more things, like the player and camera, are moved to global space
-        cdb = (cdb == &db[0]) ? &db[1] : &db[0];
-
-        // Initialises a linked list for OT / clears (zeroes?) OT for current frame in reverse order (faster)
-        // "When an OT is initialized, the polygons are unlinked, and only then is a re-sort possible. 
-        // Therefore, it is always necessary to initialize an OT prior to executing a sort." - Library Overview, 10-8
-        ClearOTagR(cdb->ot, OTSIZE);
-
         // Add polys to OT
         for (size_t i = 0; i < ACTIVEPOLYGONCOUNT; i++) {
-            CameraTransformMatrix(player->cameraPtr, &activePolygons[i]->obj.transform);
-            AddPolyF(activePolygons[i], cdb->ot);
+            //CameraTransformMatrix(player->cameraPtr, &activePolygons[i]->obj.transform);
+            //AddPolyF(activePolygons[i], cdb->ot);
         }
+
+        CameraTransformMatrix(player->cameraPtr, &activePolygons[0]->obj.transform);
+        AddPolyF(activePolygons[0], cdb->ot);
         
         for (size_t i = 0; i < ACTIVETEXPOLYGONCOUNT; i++) {
-            CameraTransformMatrix(player->cameraPtr, &activeTexPolygons[i]->polyObj.obj.transform);
-            AddPolyFT(activeTexPolygons[i], cdb->ot);
+            //CameraTransformMatrix(player->cameraPtr, &activeTexPolygons[i]->polyObj.obj.transform);
+            //AddPolyFT(activeTexPolygons[i], cdb->ot);
         }
 
         for (size_t i = 0; i < ACTIVETILEDTEXPOLYGONCOUNT; i++) {
             CameraTransformMatrix(player->cameraPtr, &activeTiledTexPolygons[i]->polyObj.obj.transform);
             //AddTiledPolyFT(activeTiledTexPolygons[i], cdb->ot);
             AddTiledPolyFTProper(activeTiledTexPolygons[i], cdb->ot);
+            /*
+            if (i == 2) {
+                AddTiledPolyFTProperPrint(activeTiledTexPolygons[i], cdb->ot);
+            }
+            else {
+                AddTiledPolyFTProper(activeTiledTexPolygons[i], cdb->ot);
+            }
+            */
+            
         }
 
-        CameraTransformMatrix(player->cameraPtr, &testPoly->obj.transform);
-        AddMultiPoly(testPoly, cdb->ot);
+        //CameraTransformMatrix(player->cameraPtr, &testPoly->obj.transform);
+        //AddMultiPoly(testPoly, cdb->ot);
 
-        CameraTransformMatrix(player->cameraPtr, &testPolyFloor->obj.transform);
-        AddMultiPoly(testPolyFloor, cdb->ot);
+        //CameraTransformMatrix(player->cameraPtr, &testPolyFloor->obj.transform);
+        //AddMultiPoly(testPolyFloor, cdb->ot);
 
         for (size_t i = 0; i < activeCollisionPolyBoxes->count; i++) {
             StaticCollisionPolyBox* scpolybox = activeCollisionPolyBoxes->array[i];

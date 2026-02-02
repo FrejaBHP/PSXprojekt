@@ -33,7 +33,7 @@ typedef struct StaticCollisionPolyBox {
     MATRIX transform;
     CollisionBox colBox;
 
-    POLY_FT4* polys[6];
+    POLY_FT4* polys[12];
     SVECTOR* vertices;
     long* indices;
 } StaticCollisionPolyBox;
