@@ -7,9 +7,21 @@
 
 enum DrawPriority {
     DRP_Neutral,
+    DRP_First,
+    DRP_Highest,
+    DRP_Higher,
+    DRP_High,
     DRP_Low,
-    DRP_High
+    DRP_Lower,
+    DRP_Lowest,
+    DRP_Last
 };
+
+typedef struct PolyData {
+	u_short tpage, clut;
+	u_char u0, v0, um, vm;
+	u_char r, g, b, pad;
+} PolyData;
 
 typedef struct CollisionOverlaps {
     bool x;
@@ -33,7 +45,7 @@ typedef struct StaticCollisionPolyBox {
     MATRIX transform;
     CollisionBox colBox;
 
-    POLY_FT4* polys[12];
+    PolyData polyData[6];
     SVECTOR* vertices;
     long* indices;
 } StaticCollisionPolyBox;
@@ -63,7 +75,7 @@ typedef struct PolyObject {
 
     u_char polySides;
     ushort polyLength;
-    void* polyPtr;
+    PolyData* polyDataPtr;
     SVECTOR* verticesPtr;
     long* indicesPtr;
     enum DrawPriority drPrio;

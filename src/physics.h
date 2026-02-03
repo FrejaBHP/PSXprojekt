@@ -26,6 +26,7 @@ void SortAndResolveOverlaps(const size_t numEntries);
 void ResolveOverlaps(const PhysicsResolutionEntry* table, size_t numEntries);
 
 void InitPhysicsLists();
+CollisionBox* CreateCollisionBox(long posX, long posY, long posZ, short dimX, short dimY, short dimZ);
 void RegisterColPolyBox(StaticCollisionPolyBox* scpolybox);
 void RegisterCollisionBox(CollisionBox* colBox);
 

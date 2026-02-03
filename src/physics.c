@@ -343,6 +343,13 @@ void InitPhysicsLists() {
     activeCollisionBoxes = CreateGenericPtrList();
 }
 
+CollisionBox* CreateCollisionBox(long posX, long posY, long posZ, short dimX, short dimY, short dimZ) {
+    CollisionBox* colBox = malloc(sizeof(CollisionBox));
+    setVector(&colBox->gridPos, posX, posY, posZ);
+    setVector(&colBox->dimensions, dimX, dimY, dimZ);
+    RegisterCollisionBox(colBox);
+}
+
 void RegisterColPolyBox(StaticCollisionPolyBox* scpolybox) {
     AddItemToGenericPtrList(&activeCollisionPolyBoxes, scpolybox);
     RegisterCollisionBox(&scpolybox->colBox);

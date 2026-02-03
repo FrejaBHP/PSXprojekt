@@ -15,16 +15,16 @@ TIM_IMAGE dlv_metalpanel_tim;
 TIM_IMAGE dlv_slate_tim;
 TIM_IMAGE dlv_stonebrick_tim;
 
-void LoadTexture(u_long* tim, TIM_IMAGE* tparam) {     // This part is from Lameguy64's tutorial series : lameguy64.net/svn/pstutorials/chapter1/3-textures.html login/pw: annoyingmous
-    OpenTIM(tim);                                   // Open the tim binary data, feed it the address of the data in memory
-    ReadTIM(tparam);                                // This read the header of the TIM data and sets the corresponding members of the TIM_IMAGE structure
+void LoadTexture(u_long* tim, TIM_IMAGE* tparam) {      // This part is from Lameguy64's tutorial series : lameguy64.net/svn/pstutorials/chapter1/3-textures.html login/pw: annoyingmous
+    OpenTIM(tim);                                       // Open the tim binary data, feed it the address of the data in memory
+    ReadTIM(tparam);                                    // This read the header of the TIM data and sets the corresponding members of the TIM_IMAGE structure
     
-    LoadImage(tparam->prect, tparam->paddr);        // Transfer the data from memory to VRAM at position prect.x, prect.y
-    DrawSync(0);                                    // Wait for the drawing to end
+    LoadImage(tparam->prect, tparam->paddr);            // Transfer the data from memory to VRAM at position prect.x, prect.y
+    DrawSync(0);                                        // Wait for the drawing to end
     
-    if (tparam->mode & 0x8) { // check 4th bit       // If 4th bit == 1, TIM has a CLUT
-        LoadImage(tparam->crect, tparam->caddr);    // Load it to VRAM at position crect.x, crect.y
-        DrawSync(0);                                // Wait for drawing to end
+    if (tparam->mode & 0x8) { // check 4th bit          // If 4th bit == 1, TIM has a CLUT
+        LoadImage(tparam->crect, tparam->caddr);        // Load it to VRAM at position crect.x, crect.y
+        DrawSync(0);                                    // Wait for drawing to end
     }
 }
 
@@ -44,14 +44,6 @@ void InitGraphics() {
     // 1 = Checks vertices and drawn primitives
     // 2 = Same as above but dumps them instead
     SetGraphDebug(0);
-
-    // Set drawenv defs
-    /*
-    SetDefDrawEnv(&db[0].draw, 0, 8, RENDERX, 224);
-    SetDefDrawEnv(&db[1].draw, 0, 248, RENDERX, 224);
-    SetDefDispEnv(&db[0].disp, 0, 240, RENDERX, 240);
-    SetDefDispEnv(&db[1].disp, 0, 0, RENDERX, 240);
-    */
 
     SetDefDrawEnv(&db[0].draw, 0, 0, RENDERX, 240);
     SetDefDrawEnv(&db[1].draw, 0, 256, RENDERX, 240);
@@ -91,31 +83,19 @@ void InitGraphics() {
 
     DrawSync(0);
 
-    // Actually display the things on screen
-    SetDispMask(1);
-
-    //setDrawMode(&resetDRMODE, 0, 1, 0, &resetRect);
-
     LoadTexture(woodPanel_start, &woodPanel_tim);
     LoadTexture(woodDoor_start, &woodDoor_tim);
     LoadTexture(cobble_start, &cobble_tim);
     LoadTexture(dlv_metalpanel_start, &dlv_metalpanel_tim);
     LoadTexture(dlv_slate_start, &dlv_slate_tim);
     LoadTexture(dlv_stonebrick_start, &dlv_stonebrick_tim);
+
+    // Actually display the things on screen
+    SetDispMask(1);
 }
 
 void DrawFrame() {
-    //FntPrint("Buffer: %d\n", usedBuffer);
-    //FntPrint("B0 Offset: %d %d\n", db[0].draw.ofs[0], db[0].draw.ofs[1]);
-    //FntPrint("B1 Offset: %d %d\n", db[1].draw.ofs[0], db[1].draw.ofs[1]);
-
-    //FntPrint("Status: %x\n", pad0.status);
-    //FntPrint("Type: %x\n", pad0.type);
-    //FntPrint("Buttons: %04x\n", pad0.buttons);
-    //FntPrint("LastInput: %04x\n", lastInput);
-    //FntPrint("Stick L XY: (%02x, %02x)\n", pad0.leftstick.x, pad0.leftstick.y);
-    //FntPrint("Stick R XY: (%02x, %02x)\n\n", pad0.rightstick.x, pad0.rightstick.y);
-
+    // Debug print stuff
     /*
     FntPrint("CM0: %04d, %04d, %04d\n", player->cameraPtr->transform.m[0][0], player->cameraPtr->transform.m[0][1], player->cameraPtr->transform.m[0][2]);
     FntPrint("CM1: %04d, %04d, %04d\n", player->cameraPtr->transform.m[1][0], player->cameraPtr->transform.m[1][1], player->cameraPtr->transform.m[1][2]);
@@ -130,10 +110,6 @@ void DrawFrame() {
 
     //FntPrint("PV : %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
     //FntPrint("PP : %06d, %06d, %06d\n", player->poly.obj.position.vx, player->poly.obj.position.vy, player->poly.obj.position.vz);
-    
-    
-    //FntPrint("HDif: %d\n", heightDif);
-    //FntPrint("Space: %d\n", occupiesSameSpace);
 
     // Wait for previous frame to have finished drawing if needed
     DrawSync(0);

@@ -23,11 +23,8 @@ typedef struct {
 #define RENDERY 240
 
 extern u_long woodPanel_start[];
-extern u_long woodPanel_end[];
 extern u_long woodDoor_start[];
-extern u_long woodDoor_end[];
 extern u_long cobble_start[];
-extern u_long cobble_end[];
 extern u_long dlv_metalpanel_start[];
 extern u_long dlv_slate_start[];
 extern u_long dlv_stonebrick_start[];
