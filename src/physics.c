@@ -358,3 +358,38 @@ void RegisterColPolyBox(StaticCollisionPolyBox* scpolybox) {
 void RegisterCollisionBox(CollisionBox* colBox) {
     AddItemToGenericPtrList(&activeCollisionBoxes, colBox);
 }
+
+void CheckCollectiblePickup(LinkedList* list) {
+    LLNode* node = list->head;
+    CollectibleObject* cobj;
+    LLNode* nodePendingRemoval = NULL;
+
+    int diffX = 0;
+    int diffY = 0;
+    int diffZ = 0;
+    const int pickupRange = ONE * 32;
+
+    const int playerCY = player->poly.obj.position.vy - ((player->poly.boxHeight / 2) * ONE);
+
+    while (node != NULL) {
+        cobj = (CollectibleObject*)node->data;
+
+        diffX = abs(cobj->position.vx - player->poly.obj.position.vx);
+        diffY = abs(cobj->position.vy - playerCY);
+        diffZ = abs(cobj->position.vz - player->poly.obj.position.vz);
+
+        //FntPrint("%06d %06d %06d\n", diffX, diffY, diffZ);
+
+        if (diffX < pickupRange && diffY < pickupRange && diffZ < pickupRange) {
+            nodePendingRemoval = node;
+            collectedCoins++;
+        }
+
+        node = node->next;
+        
+        if (nodePendingRemoval != NULL) {
+            RemoveItemFromLinkedList(list, nodePendingRemoval->data);
+            nodePendingRemoval = NULL;
+        }
+    }
+}

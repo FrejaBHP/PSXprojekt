@@ -17,6 +17,10 @@ enum DrawPriority {
     DRP_Last
 };
 
+enum CollectibleType {
+    CT_Coin
+};
+
 typedef struct PolyData {
 	u_short tpage, clut;
 	u_char u0, v0, um, vm;
@@ -69,6 +73,13 @@ typedef struct CameraObject {
     MATRIX transform;
 } CameraObject;
 
+typedef struct CollectibleObject {
+    VECTOR position; // Position to update the Transform with. Position is ONE (4096) bigger than the actual values stored in the Transform
+    SVECTOR rotation;
+    MATRIX transform;
+    enum CollectibleType cType;
+} CollectibleObject;
+
 // Extends GameObject and can also hold all the data needed to draw a polygon
 typedef struct PolyObject {
     GameObject obj;
@@ -80,6 +91,7 @@ typedef struct PolyObject {
     long* indicesPtr;
     enum DrawPriority drPrio;
 
+    // Used for player collision. Should be moved elsewhere, since no objects actually use this
     int boxHeight;
     int boxWidth;
 

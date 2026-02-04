@@ -28,6 +28,7 @@ extern u_long cobble_start[];
 extern u_long dlv_metalpanel_start[];
 extern u_long dlv_slate_start[];
 extern u_long dlv_stonebrick_start[];
+extern u_long goldCoin_start[];
 
 extern TIM_IMAGE woodPanel_tim;
 extern TIM_IMAGE woodDoor_tim;
@@ -35,6 +36,7 @@ extern TIM_IMAGE cobble_tim;
 extern TIM_IMAGE dlv_metalpanel_tim;
 extern TIM_IMAGE dlv_slate_tim;
 extern TIM_IMAGE dlv_stonebrick_tim;
+extern TIM_IMAGE goldCoin_tim;
 
 // (Double) Buffer struct
 typedef struct DB {

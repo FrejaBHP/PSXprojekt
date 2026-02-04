@@ -165,6 +165,11 @@ static SVECTOR tiledPanelVertices[] = {
     { WALLHEIGHT, 0, 0, 0 }, { 0, 0, 0, 0 }
 };
 
+static SVECTOR collectibleVertices[] = {
+    { -16, -16, 0, 0 }, { 16, -16, 0, 0 },
+    { 16, 16, 0, 0 },   { -16, 16, 0, 0 }
+};
+
 static long reverseWindingIndices[] = {
     0, 3, 2, 1
 };
@@ -173,9 +178,13 @@ static long windingIndices[] = {
     0, 1, 2, 3
 };
 
+PolyData coinPolyData;
+
 PolyObject* activePolygons[ACTIVEPOLYGONCOUNT];
 TexturedPolyObject* activeTexPolygons[ACTIVETEXPOLYGONCOUNT];
 TiledTexturedPolyObject* activeTiledTexPolygons[ACTIVETILEDTEXPOLYGONCOUNT];
+
+LinkedList* collectibleList;
 
 // Splits the dataBuffer into the other members for readability and ease of use
 void UpdatePad(GamePad* pad) {
@@ -556,6 +565,22 @@ StaticCollisionPolyBox* CreateCollisionPolyBox(
     RegisterColPolyBox(scpolybox);
 
     return scpolybox;
+}
+
+CollectibleObject* CreateCollectibleObject(long posX, long posY, long posZ, enum CollectibleType cType) {
+    CollectibleObject* cobj = calloc(1, sizeof(CollectibleObject));
+    VECTOR pos = { posX, posY, posZ };
+    CVECTOR colour = { 128, 128, 128, 0 };
+
+    if (cobj != NULL) {
+        setVector(&cobj->position, pos.vx * ONE, pos.vy * ONE, pos.vz * ONE);
+        cobj->cType = cType;
+
+        RotMatrix_gte(&cobj->rotation, &cobj->transform);
+        TransMatrix(&cobj->transform, &pos);
+    }
+
+    return cobj;
 }
 
 TestTileMultiPoly* CreateTestMultiPoly(
@@ -955,6 +980,61 @@ static void AddStaticPolyBox(StaticCollisionPolyBox* scpolybox) {
     }
 }
 
+static void AddCollectible(CollectibleObject* cobj) {
+    POLY_FT4* poly;
+    long p, otz, flg;
+
+    poly = (POLY_FT4*)primPtr;
+    SVECTOR* verticesPtr;
+    PolyData* polyData;
+
+    if (cobj->cType == CT_Coin) {
+        verticesPtr = collectibleVertices;
+        polyData = &coinPolyData;
+    }
+
+    gte_ldv3(&verticesPtr[windingIndices[0]], &verticesPtr[windingIndices[1]], &verticesPtr[windingIndices[3]]);
+    gte_rtpt();
+
+    setPolyFT4(poly);
+    poly->tpage = polyData->tpage;
+    poly->clut = polyData->clut;
+    setRGB0(poly, polyData->r, polyData->g, polyData->b);
+    setUVWH(poly, polyData->u0, polyData->v0, polyData->um, polyData->vm);
+
+    gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+    gte_ldv0(&verticesPtr[windingIndices[2]]);
+    gte_rtps();
+
+    gte_avsz4();
+    gte_stotz(&otz);
+    gte_stsxy(&poly->x3);
+    
+    if ((otz > 0) && (otz < OTSIZE)) {
+        if ((otz - 1) > 0) {
+            otz -= 1;
+        }
+        addPrim(cdb->ot[otz], poly);
+    }
+
+    primPtr += sizeof(POLY_FT4);
+}
+
+
+static void IterateAddCollectibles(LinkedList* list) {
+    LLNode* node = list->head;
+    CollectibleObject* cobj;
+
+    while (node != NULL) {
+        cobj = (CollectibleObject*)node->data;
+
+        CameraTransformMatrix(player->cameraPtr, &cobj->transform);
+        AddCollectible(cobj);
+
+        node = node->next;
+    }
+}
+
 // Tiles and passively tessellates polys side by side (VERY WIP!!!)
 static void AddMultiPoly(TestTileMultiPoly* tmp, u_long* ot) {
     long p, otz, flg;
@@ -1037,6 +1117,34 @@ void resetCube(SVECTOR* rot, VECTOR* trans) {
     setVector(trans, 0, (-CUBEHALF - 32) * ONE, DISTTHING * ONE);
 }
 
+void SpawnCoin(u_char num) {
+    const long x = 64;
+    CollectibleObject* coin;
+
+    switch (num) {
+        case 1:
+            coin = CreateCollectibleObject(
+                x + 272, -108, -80, CT_Coin
+            );
+            break;
+
+        case 2:
+            coin = CreateCollectibleObject(
+                x + 272, -68, -128, CT_Coin
+            );
+            break;
+
+        default:
+            coin = CreateCollectibleObject(
+                x + 272, -148, -32, CT_Coin
+            );
+            break;
+    }
+
+    AppendItemToLinkedList(collectibleList, coin);
+}
+
+
 int main(void) {
     // The PlayStation does not provide a usable heap to the program. Instead, it has to be assigned/claimed by the program
     // The system's main RAM is found at 0x80000000 through 0x80200000 (or 0x80800000 with the 8MB RAM in debug mode over the 2MB standard)
@@ -1093,6 +1201,9 @@ int main(void) {
     }
 
     CreatePlayer(col);
+
+    collectibleList = CreateGenericLinkedList();
+    coinPolyData = SetupPolyData(&goldCoin_tim, 0, 128, 32, 32);
 
     PolyObject* colPlatform = CreatePolyObjectF4(
         0, -24, DISTTHING / 2, 
@@ -1260,8 +1371,6 @@ int main(void) {
     activeTiledTexPolygons[3] = slateFloor1;
 
 
-    // Should really do something about these "constructors". They're really long
-
     StaticCollisionPolyBox* testPolyBox = CreateCollisionPolyBox(
         startX + 96, 0, -88,
         0, 0, 0,
@@ -1407,6 +1516,36 @@ int main(void) {
                 TPressed = 0;
             }
 
+            if (pad0.buttons & PADRleft) {
+                if (!isSquareHeld) {
+                    isSquareHeld = true;
+                    SpawnCoin(0);
+                }
+            }
+            else if (isSquareHeld) {
+                isSquareHeld = false;
+            }
+
+            if (pad0.buttons & PADRup) {
+                if (!isTriangleHeld) {
+                    isTriangleHeld = true;
+                    SpawnCoin(1);
+                }
+            }
+            else if (isTriangleHeld) {
+                isTriangleHeld = false;
+            }
+
+            if (pad0.buttons & PADRright) {
+                if (!isCircleHeld) {
+                    isCircleHeld = true;
+                    SpawnCoin(2);
+                }
+            }
+            else if (isCircleHeld) {
+                isCircleHeld = false;
+            }
+
             // Clean this up later, preferably by writing a separate file for input handling
             VECTOR inputVelocity = { 0 };
 
@@ -1459,6 +1598,7 @@ int main(void) {
 
         // Simulates player movement and resolves collision, then moves the player accordingly
         SimulatePlayerMovementCollision();
+        CheckCollectiblePickup(collectibleList);
 
         if (isPlayerOnCollision) {
             isPlayerOnFloor = true;
@@ -1530,10 +1670,14 @@ int main(void) {
             AddStaticPolyBox(scpolybox);
         }
 
+        IterateAddCollectibles(collectibleList);
+
         //FntPrint("PT: %04d, %04d, %04d\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
         //FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
 
         //FntPrint("%x\n", heapStart);
+
+        FntPrint("Coins\nCollected: %d\nRemaining: %d\n", collectedCoins, GetLinkedListLength(collectibleList));
         
         DrawFrame();
     }

@@ -15,5 +15,11 @@ typedef struct PlayerObject {
 extern PlayerObject* player;
 extern bool isPlayerOnFloor;
 extern bool isPlayerOnCollision;
+extern int collectedCoins;
+
+extern bool isCrossHeld;
+extern bool isSquareHeld;
+extern bool isTriangleHeld;
+extern bool isCircleHeld;
 
 #endif

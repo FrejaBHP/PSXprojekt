@@ -14,6 +14,7 @@ textures/cobble.tim \
 textures/dlv_metalpanel.tim \
 textures/dlv_slate.tim \
 textures/dlv_stonebrick.tim \
+textures/goldCoin.tim \
 
 CPPFLAGS += -Ithird_party/psyq-iwyu/include
 LDFLAGS += -Lthird_party/psyq/lib

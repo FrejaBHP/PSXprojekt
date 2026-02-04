@@ -30,4 +30,6 @@ CollisionBox* CreateCollisionBox(long posX, long posY, long posZ, short dimX, sh
 void RegisterColPolyBox(StaticCollisionPolyBox* scpolybox);
 void RegisterCollisionBox(CollisionBox* colBox);
 
+void CheckCollectiblePickup(LinkedList* list);
+
 #endif

@@ -14,6 +14,7 @@ TIM_IMAGE cobble_tim;
 TIM_IMAGE dlv_metalpanel_tim;
 TIM_IMAGE dlv_slate_tim;
 TIM_IMAGE dlv_stonebrick_tim;
+TIM_IMAGE goldCoin_tim;
 
 void LoadTexture(u_long* tim, TIM_IMAGE* tparam) {      // This part is from Lameguy64's tutorial series : lameguy64.net/svn/pstutorials/chapter1/3-textures.html login/pw: annoyingmous
     OpenTIM(tim);                                       // Open the tim binary data, feed it the address of the data in memory
@@ -89,6 +90,7 @@ void InitGraphics() {
     LoadTexture(dlv_metalpanel_start, &dlv_metalpanel_tim);
     LoadTexture(dlv_slate_start, &dlv_slate_tim);
     LoadTexture(dlv_stonebrick_start, &dlv_stonebrick_tim);
+    LoadTexture(goldCoin_start, &goldCoin_tim);
 
     // Actually display the things on screen
     SetDispMask(1);

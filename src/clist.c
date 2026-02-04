@@ -1,4 +1,5 @@
 #include "clist.h"
+#include <stdbool.h>
 
 GenericList* CreateGenericList(size_t elementSize) {
 	const int startingCapacity = 8;
@@ -131,3 +132,86 @@ void* GetItemFromGenericPtrList(GenericPtrList* list, size_t index) {
 	return list->array[index];
 }
 
+
+// ====================================================================
+
+LinkedList* CreateGenericLinkedList() {
+	LinkedList* list = malloc(sizeof(LinkedList));
+	list->head = NULL;
+	list->tail = NULL;
+
+	return list;
+}
+
+void AppendItemToLinkedList(LinkedList* list, void* item) {
+	LLNode* newNode = malloc(sizeof(LLNode));
+
+	if (list->head == NULL) {
+		list->head = newNode;
+	}
+
+	newNode->data = item;
+	newNode->next = NULL;
+
+	if (list->tail != NULL) {
+		list->tail->next = newNode;
+	}
+
+	list->tail = newNode;
+}
+
+void RemoveItemFromLinkedList(LinkedList* list, void* item) {
+	LLNode* prevNode = NULL;
+	LLNode* node = list->head;
+
+	bool itemFound = false;
+
+	while (node != NULL) {
+		if (node->data == item) {
+			itemFound = true;
+			break;
+		}
+
+		prevNode = node;
+		node = node->next;
+	}
+
+	if (itemFound) {
+		// If node is the first element
+		if (list->head == node) {
+			// If first element is the ONLY element
+			if (node->next == NULL) {
+				list->head = NULL;
+				list->tail = NULL;
+			}
+			else {
+				list->head = node->next;
+			}
+		}
+		// If node is the last element
+		else if (list->tail == node) {
+			prevNode->next = NULL;
+			list->tail = prevNode;
+		}
+		// If node has another node after it
+		// This case should always be hit if the two above aren't, but still doing an extra cautionary nullptr check
+		else if (node->next != NULL) {
+			prevNode->next = node->next;
+		}
+
+		free(item);
+		free(node);
+	}
+}
+
+size_t GetLinkedListLength(LinkedList* list) {
+	LLNode* node = list->head;
+	size_t count = 0;
+
+	while (node != NULL) {
+		node = node->next;
+		count++;
+	}
+
+	return count;
+}
