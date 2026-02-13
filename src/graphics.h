@@ -52,9 +52,12 @@ extern size_t cdbIndex;
 extern u_char* primPtr;
 
 extern MATRIX globalRenderTransform;
+extern MATRIX identity;
 
+void InvertMatrix(MATRIX *a, MATRIX *b);
 void LoadTexture(u_long* tim, TIM_IMAGE* tparam);
 void InitGraphics();
 void DrawFrame();
+void DebugPrintMatrix(MATRIX* matrix, char descriptor);
 
 #endif

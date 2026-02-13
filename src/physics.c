@@ -9,6 +9,7 @@ GenericPtrList* activeCollisionBoxes = { 0 };
 
 VECTOR playerSimulatedPosition;
 VECTOR playerSimulatedPositionFinal;
+const int pickupRange = ONE * 32;
 
 static int CompareAxisSortX(const void* a, const void* b) {
     PhysicsResolutionEntry dataA = *(const PhysicsResolutionEntry*)a;
@@ -127,18 +128,14 @@ void SimulatePlayerMovementCollision() {
 
         ScanForOverlaps(&playerSimulatedPositionGridMins, &playerSimulatedPositionGridMaxs, activeCollisionBoxes->array[i], &overlaps);
 
-        //FntPrint("%d %d %d\n", intersectsX, intersectsY, intersectsZ);
-
         // If player is at least above or underneath a collision box
         if (overlaps.x && overlaps.z) {
             CollisionBox* colBox = activeCollisionBoxes->array[i];
             // If player is actually trying to enter collision box
             if (overlaps.y) {
-                //FntPrint("%d\n", i);
                 
                 if (player->poly.obj.velocity.vy == 0 && isPlayerOnFloor && !playerHasStepped) {
                     long stepheight = playerSimulatedPositionGridMins.vy - colBox->gridPos.vy + colBox->dimensions.vy;
-                    //FntPrint("StepHeight: %03d\n", stepheight);
 
                     if (stepheight <= 32 && stepheight > 0) {
                         // Second simulated position to check if player is trying to step up into geometry
@@ -202,14 +199,10 @@ void SimulatePlayerMovementCollision() {
                     size_t index = 0;
                     long bleedValue = abs(bleed[0]);
 
-                    //FntPrint("%d < %d\n", abs(bleed[0]), bleedValue);
-
                     for (size_t a = 1; a < 3; a++) {
                         if (a == 1 && ignoreY) {
                             continue;
                         }
-
-                        //FntPrint("%d < %d\n", abs(bleed[a]), bleedValue);
 
                         if (abs(bleed[a]) < bleedValue) {
                             bleedValue = abs(bleed[a]);
@@ -277,8 +270,6 @@ void SortAndResolveOverlaps(const size_t numEntries) {
 }
 
 void ResolveOverlaps(const PhysicsResolutionEntry* table, const size_t numEntries) {
-    //bool skipRecalc = false;
-
     for (size_t i = 0; i < numEntries; i++) {
         VECTOR playerSimulatedPositionGridMins = { 
             (playerSimulatedPositionFinal.vx >> 12) - player->poly.boxWidth / 2,
@@ -321,15 +312,9 @@ void ResolveOverlaps(const PhysicsResolutionEntry* table, const size_t numEntrie
                 playerSimulatedPositionFinal.vz += table[i].value;
                 player->poly.obj.velocity.vz = 0;
             }
-
-            //FntPrint("Colbox Index: %d\n", table[i].objIndex);
-            //FntPrint("Bleed Index: %d\n", table[i].axis);
-            //FntPrint("Bleed Value: %d\n", table[i].value);
         }
         else if (overlaps.x && overlaps.z && playerSimulatedPositionGridMins.vy == colBox->gridPos.vy - colBox->dimensions.vy
             && player->poly.obj.velocity.vy == 0) {
-
-            //FntPrint("Standing on colbox Index: %d\n", table[i].objIndex);
 
             isPlayerOnCollision = true;
         }
@@ -367,7 +352,6 @@ void CheckCollectiblePickup(LinkedList* list) {
     int diffX = 0;
     int diffY = 0;
     int diffZ = 0;
-    const int pickupRange = ONE * 32;
 
     const int playerCY = player->poly.obj.position.vy - ((player->poly.boxHeight / 2) * ONE);
 
@@ -377,8 +361,6 @@ void CheckCollectiblePickup(LinkedList* list) {
         diffX = abs(cobj->position.vx - player->poly.obj.position.vx);
         diffY = abs(cobj->position.vy - playerCY);
         diffZ = abs(cobj->position.vz - player->poly.obj.position.vz);
-
-        //FntPrint("%06d %06d %06d\n", diffX, diffY, diffZ);
 
         if (diffX < pickupRange && diffY < pickupRange && diffZ < pickupRange) {
             nodePendingRemoval = node;

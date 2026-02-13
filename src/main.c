@@ -21,9 +21,9 @@
 
 #define DISTTHING 512
 
-#define PLAYERHEIGHT 48
-#define PLAYERWIDTHHALF 20
-#define CAMERADISTANCE 160 // 160
+#define PLAYERHEIGHT 36
+#define PLAYERWIDTHHALF 16
+#define CAMERADISTANCE 144 // 160
 
 #define CUBESIZE 80
 #define CUBEHALF CUBESIZE / 2
@@ -185,6 +185,9 @@ TexturedPolyObject* activeTexPolygons[ACTIVETEXPOLYGONCOUNT];
 TiledTexturedPolyObject* activeTiledTexPolygons[ACTIVETILEDTEXPOLYGONCOUNT];
 
 LinkedList* collectibleList;
+
+MATRIX cameraRotationMatrix = { 0 };
+SVECTOR cameraRotation = { 0 };
 
 // Splits the dataBuffer into the other members for readability and ease of use
 void UpdatePad(GamePad* pad) {
@@ -745,24 +748,23 @@ static void CameraTransformMatrix(CameraObject* camera, MATRIX* matrix) {
     gte_SetTransMatrix(&globalRenderTransform);
 }
 
-static void UpdatePlayerCamera(VECTOR* tPos, VECTOR* cPos, SVECTOR* cRot) {
-    RotMatrix_gte(cRot, &player->cameraPtr->transform);
+static void UpdatePlayerCamera(SVECTOR* cRot) {
+    VECTOR cameraOrbitPos = {
+        .vx = -player->poly.obj.position.vx >> 12,
+        .vy = (-player->poly.obj.position.vy >> 12) + 54,       // 54 = PLAYERHEIGHT (36) * 1.5
+        .vz = -player->poly.obj.position.vz >> 12
+    };
 
-    tPos->vx = player->poly.obj.position.vx >> 12;
-    tPos->vy = player->poly.obj.position.vy >> 12;
-    tPos->vz = player->poly.obj.position.vz >> 12;
+    RotMatrix_gte(cRot, &cameraRotationMatrix);
 
-    player->cameraPtr->position = player->poly.obj.position;
-    player->cameraPtr->position.vy -= PLAYERHEIGHT * ONE * 2;
-    player->cameraPtr->position.vz -= CAMERADISTANCE * ONE;
+    MATRIX pivotMatrix = identity;
+    MATRIX invPlayerRotationMatrix;
+    InvertMatrix(&player->poly.obj.transform, &invPlayerRotationMatrix);
+    MulMatrix(&cameraRotationMatrix, &invPlayerRotationMatrix);
+    TransMatrix(&pivotMatrix, &cameraOrbitPos);
 
-    cPos->vx = -player->cameraPtr->position.vx >> 12;
-    cPos->vy = -player->cameraPtr->position.vy >> 12;
-    cPos->vz = -player->cameraPtr->position.vz >> 12;
+    CompMatrix(&cameraRotationMatrix, &pivotMatrix, &player->cameraPtr->transform);
 
-    ApplyMatrixLV(&player->cameraPtr->transform, cPos, cPos);
-    TransMatrix(&player->cameraPtr->transform, cPos);
-    
     gte_SetRotMatrix(&player->cameraPtr->transform);
     gte_SetTransMatrix(&player->cameraPtr->transform);
 }
@@ -1177,10 +1179,8 @@ int main(void) {
     CVECTOR col[6];
 
     // Rotation still works with 4096 (ONE) = 360 degrees
-    VECTOR rPos = { 0 };
-    SVECTOR rRot = { 0 };
-
-    VECTOR cPos = { 0 };
+    SVECTOR cameraFixedRot = { 0 };
+    cameraFixedRot.vx = 256;
     
     int PadStatus;
     int TPressed = 0;
@@ -1201,6 +1201,9 @@ int main(void) {
     }
 
     CreatePlayer(col);
+    cameraRotationMatrix = identity;
+    //cameraRotationMatrix.t[1] = (PLAYERHEIGHT * 2);
+    cameraRotationMatrix.t[2] = CAMERADISTANCE;
 
     collectibleList = CreateGenericLinkedList();
     coinPolyData = SetupPolyData(&goldCoin_tim, 0, 128, 32, 32);
@@ -1475,10 +1478,6 @@ int main(void) {
     VSync(0);
 
     while (1) {
-        rRot.vx = player->cameraPtr->rotation.vx >> 12;
-        rRot.vy = player->cameraPtr->rotation.vy >> 12;
-        rRot.vz = player->cameraPtr->rotation.vz >> 12;
-
         // Translate pad data buffer into a readable format
         UpdatePad(&pad0);
 
@@ -1546,34 +1545,47 @@ int main(void) {
                 isCircleHeld = false;
             }
 
+            if (pad0.buttons & PADL1) {
+                //tiledWall->polyObj.obj.rotation.vy -= 32;
+                player->poly.obj.rotation.vy -= 32;
+                //cameraRotation.vy += 16;
+            }
+
+            if (pad0.buttons & PADR1) {
+                //tiledWall->polyObj.obj.rotation.vy += 32;
+                player->poly.obj.rotation.vy += 32;
+                //cameraRotation.vy -= 16;
+            }
+
             // Clean this up later, preferably by writing a separate file for input handling
             VECTOR inputVelocity = { 0 };
 
             // LS Up (Move forward)
             if (pad0.leftstick.y < ANALOGUE_MINNEG) {
-                inputVelocity.vx -= csin(rRot.vy) << 2;
-				inputVelocity.vz += ccos(rRot.vy) << 2;
+                inputVelocity.vx -= csin(cameraFixedRot.vy) << 2;
+				inputVelocity.vz += ccos(cameraFixedRot.vy) << 2;
             }
             // LS Down (Move backward)
             else if (pad0.leftstick.y > ANALOGUE_MINPOS) {
-                inputVelocity.vx += csin(rRot.vy) << 2;
-				inputVelocity.vz -= ccos(rRot.vy) << 2;
+                inputVelocity.vx += csin(cameraFixedRot.vy) << 2;
+				inputVelocity.vz -= ccos(cameraFixedRot.vy) << 2;
             }
 
             // LS Left (Strafe left)
             if (pad0.leftstick.x < ANALOGUE_MINNEG) {
-                inputVelocity.vx -= ccos(rRot.vy) << 2;
-				inputVelocity.vz -= csin(rRot.vy) << 2;
+                inputVelocity.vx -= ccos(cameraFixedRot.vy) << 2;
+				inputVelocity.vz -= csin(cameraFixedRot.vy) << 2;
             }
             // LS Right (Strafe right)
             else if (pad0.leftstick.x > ANALOGUE_MINPOS) {
-                inputVelocity.vx += ccos(rRot.vy) << 2;
-				inputVelocity.vz += csin(rRot.vy) << 2;
+                inputVelocity.vx += ccos(cameraFixedRot.vy) << 2;
+				inputVelocity.vz += csin(cameraFixedRot.vy) << 2;
             }
 
             player->poly.obj.velocity.vx = inputVelocity.vx;
             player->poly.obj.velocity.vz = inputVelocity.vz;
 
+            /*
             // RS Up
             if (pad0.rightstick.y < ANALOGUE_MINNEG) {
                 player->cameraPtr->rotation.vx -= ONE * 8;
@@ -1582,19 +1594,26 @@ int main(void) {
             else if (pad0.rightstick.y > ANALOGUE_MINPOS) {
                 player->cameraPtr->rotation.vx += ONE * 8;
             }
+            */
 
             // RS Left
             if (pad0.rightstick.x < ANALOGUE_MINNEG) {
-                player->cameraPtr->rotation.vy += ONE * 8;
+                player->cameraPtr->rotation.vy -= ONE * 10;
             }
             // RS Right
             else if (pad0.rightstick.x > ANALOGUE_MINPOS) {
-                player->cameraPtr->rotation.vy -= ONE * 8;
+                player->cameraPtr->rotation.vy += ONE * 10;
             }
         }
 
+        //cameraFixedRot.vx = player->cameraPtr->rotation.vx >> 12;
+        //cameraFixedRot.vx = 256;
+        cameraFixedRot.vy = player->cameraPtr->rotation.vy >> 12;
+        cameraFixedRot.vz = player->cameraPtr->rotation.vz >> 12;
+        //FntPrint("Cam: %04d, %04d, %04d\n\n", cameraFixedRot.vx, cameraFixedRot.vy, cameraFixedRot.vz);
+
         //FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
-        //FntPrint("%04d %04d %04d\n", rRot.vx, rRot.vy, rRot.vz);
+        
 
         // Simulates player movement and resolves collision, then moves the player accordingly
         SimulatePlayerMovementCollision();
@@ -1640,7 +1659,7 @@ int main(void) {
             UpdatePolyObject(&activeTiledTexPolygons[i]->polyObj);
         }
 
-        UpdatePlayerCamera(&rPos, &cPos, &rRot);
+        UpdatePlayerCamera(&cameraFixedRot);
 
         // Add polys to OT
         for (size_t i = 0; i < ACTIVEPOLYGONCOUNT; i++) {
@@ -1677,7 +1696,7 @@ int main(void) {
 
         //FntPrint("%x\n", heapStart);
 
-        FntPrint("Coins\nCollected: %d\nRemaining: %d\n", collectedCoins, GetLinkedListLength(collectibleList));
+        //FntPrint("Coins\nCollected: %d\nRemaining: %d\n", collectedCoins, GetLinkedListLength(collectibleList));
         
         DrawFrame();
     }

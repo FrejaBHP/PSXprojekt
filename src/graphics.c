@@ -16,6 +16,27 @@ TIM_IMAGE dlv_slate_tim;
 TIM_IMAGE dlv_stonebrick_tim;
 TIM_IMAGE goldCoin_tim;
 
+MATRIX identity = {
+	{
+		{ 4096, 0, 0 },
+		{ 0, 4096, 0 },
+		{ 0, 0, 4096 }
+	},
+	{ 0, 0, 0 }
+};
+
+void InvertMatrix(MATRIX *a, MATRIX *b) {
+	b->m[0][0] = a->m[0][0];
+	b->m[0][1] = a->m[1][0];
+	b->m[0][2] = a->m[2][0];
+	b->m[1][0] = a->m[0][1];
+	b->m[1][1] = a->m[1][1];
+	b->m[1][2] = a->m[2][1];
+	b->m[2][0] = a->m[0][2];
+	b->m[2][1] = a->m[1][2];
+	b->m[2][2] = a->m[2][2];
+}
+
 void LoadTexture(u_long* tim, TIM_IMAGE* tparam) {      // This part is from Lameguy64's tutorial series : lameguy64.net/svn/pstutorials/chapter1/3-textures.html login/pw: annoyingmous
     OpenTIM(tim);                                       // Open the tim binary data, feed it the address of the data in memory
     ReadTIM(tparam);                                    // This read the header of the TIM data and sets the corresponding members of the TIM_IMAGE structure
@@ -27,6 +48,13 @@ void LoadTexture(u_long* tim, TIM_IMAGE* tparam) {      // This part is from Lam
         LoadImage(tparam->crect, tparam->caddr);        // Load it to VRAM at position crect.x, crect.y
         DrawSync(0);                                    // Wait for drawing to end
     }
+}
+
+void DebugPrintMatrix(MATRIX* matrix, char descriptor) {
+    FntPrint("%cM0: %04d, %04d, %04d\n", descriptor, matrix->m[0][0], matrix->m[0][1], matrix->m[0][2]);
+    FntPrint("%cM1: %04d, %04d, %04d\n", descriptor, matrix->m[1][0], matrix->m[1][1], matrix->m[1][2]);
+    FntPrint("%cM2: %04d, %04d, %04d\n", descriptor, matrix->m[2][0], matrix->m[2][1], matrix->m[2][2]);
+    FntPrint("%cT0: %04d, %04d, %04d\n\n", descriptor, matrix->t[0], matrix->t[1], matrix->t[2]);
 }
 
 void InitGraphics() {
@@ -98,17 +126,9 @@ void InitGraphics() {
 
 void DrawFrame() {
     // Debug print stuff
-    /*
-    FntPrint("CM0: %04d, %04d, %04d\n", player->cameraPtr->transform.m[0][0], player->cameraPtr->transform.m[0][1], player->cameraPtr->transform.m[0][2]);
-    FntPrint("CM1: %04d, %04d, %04d\n", player->cameraPtr->transform.m[1][0], player->cameraPtr->transform.m[1][1], player->cameraPtr->transform.m[1][2]);
-    FntPrint("CM2: %04d, %04d, %04d\n", player->cameraPtr->transform.m[2][0], player->cameraPtr->transform.m[2][1], player->cameraPtr->transform.m[2][2]);
-    FntPrint("CT0: %04d, %04d, %04d\n\n", player->cameraPtr->transform.t[0], player->cameraPtr->transform.t[1], player->cameraPtr->transform.t[2]);
 
-    FntPrint("PM0: %04d, %04d, %04d\n", player->poly.obj.transform.m[0][0], player->poly.obj.transform.m[0][1], player->poly.obj.transform.m[0][2]);
-    FntPrint("PM1: %04d, %04d, %04d\n", player->poly.obj.transform.m[1][0], player->poly.obj.transform.m[1][1], player->poly.obj.transform.m[1][2]);
-    FntPrint("PM2: %04d, %04d, %04d\n", player->poly.obj.transform.m[2][0], player->poly.obj.transform.m[2][1], player->poly.obj.transform.m[2][2]);
-    FntPrint("PT0: %04d, %04d, %04d\n\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
-    */
+    //DebugPrintMatrix(&player->cameraPtr->transform, 'C');
+    //DebugPrintMatrix(&player->poly.obj.transform, 'P');
 
     //FntPrint("PV : %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
     //FntPrint("PP : %06d, %06d, %06d\n", player->poly.obj.position.vx, player->poly.obj.position.vy, player->poly.obj.position.vz);
