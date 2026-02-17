@@ -15,6 +15,9 @@ TIM_IMAGE dlv_metalpanel_tim;
 TIM_IMAGE dlv_slate_tim;
 TIM_IMAGE dlv_stonebrick_tim;
 TIM_IMAGE goldCoin_tim;
+TIM_IMAGE grass_tim;
+TIM_IMAGE dirt_tim;
+TIM_IMAGE grassydirt_tim;
 
 MATRIX identity = {
 	{
@@ -119,6 +122,9 @@ void InitGraphics() {
     LoadTexture(dlv_slate_start, &dlv_slate_tim);
     LoadTexture(dlv_stonebrick_start, &dlv_stonebrick_tim);
     LoadTexture(goldCoin_start, &goldCoin_tim);
+    LoadTexture(grass_start, &grass_tim);
+    LoadTexture(dirt_start, &dirt_tim);
+    LoadTexture(grassydirt_start, &grassydirt_tim);
 
     // Actually display the things on screen
     SetDispMask(1);

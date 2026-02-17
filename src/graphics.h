@@ -29,6 +29,9 @@ extern u_long dlv_metalpanel_start[];
 extern u_long dlv_slate_start[];
 extern u_long dlv_stonebrick_start[];
 extern u_long goldCoin_start[];
+extern u_long grass_start[];
+extern u_long dirt_start[];
+extern u_long grassydirt_start[];
 
 extern TIM_IMAGE woodPanel_tim;
 extern TIM_IMAGE woodDoor_tim;
@@ -37,6 +40,9 @@ extern TIM_IMAGE dlv_metalpanel_tim;
 extern TIM_IMAGE dlv_slate_tim;
 extern TIM_IMAGE dlv_stonebrick_tim;
 extern TIM_IMAGE goldCoin_tim;
+extern TIM_IMAGE grass_tim;
+extern TIM_IMAGE dirt_tim;
+extern TIM_IMAGE grassydirt_tim;
 
 // (Double) Buffer struct
 typedef struct DB {

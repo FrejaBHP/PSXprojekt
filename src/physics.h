@@ -16,8 +16,6 @@ typedef struct PhysicsResolutionEntry {
 } PhysicsResolutionEntry;
 
 extern PhysicsResolutionEntry PhysicsResolutionTable[16];
-extern GenericPtrList* activeCollisionPolyBoxes;
-extern GenericPtrList* activeCollisionBoxes;
 
 void ScanForOverlaps(const VECTOR* pMins, const VECTOR* pMaxs, const CollisionBox* colBox, CollisionOverlaps* overlaps);
 bool CanPlayerStep(const VECTOR* position);
@@ -25,7 +23,6 @@ void SimulatePlayerMovementCollision();
 void SortAndResolveOverlaps(const size_t numEntries);
 void ResolveOverlaps(const PhysicsResolutionEntry* table, size_t numEntries);
 
-void InitPhysicsLists();
 CollisionBox* CreateCollisionBox(long posX, long posY, long posZ, short dimX, short dimY, short dimZ);
 void RegisterColPolyBox(StaticCollisionPolyBox* scpolybox);
 void RegisterCollisionBox(CollisionBox* colBox);

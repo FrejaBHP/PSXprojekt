@@ -1,6 +1,7 @@
 #include "clist.h"
 #include <stdbool.h>
 
+/*
 GenericList* CreateGenericList(size_t elementSize) {
 	const int startingCapacity = 8;
 
@@ -64,18 +65,31 @@ void* GetItemFromGenericList(GenericList* list, size_t index) {
 	
 	return &list->array[list->size * index];
 }
-
+*/
 
 // ====================================================================
 
+// Default starting capacity is 8
 GenericPtrList* CreateGenericPtrList() {
-	const int startingCapacity = 8;
+	const size_t startingCapacity = 8;
 
 	size_t initSize = sizeof(GenericPtrList) + (sizeof(u_long) * startingCapacity);
 	GenericPtrList* newList = malloc(initSize);
 
 	if (newList != NULL) {
 		newList->capacity = startingCapacity;
+		newList->count = 0;
+	}
+
+	return newList;
+}
+
+GenericPtrList* CreateGenericPtrListWithSize(size_t startingSize) {
+	size_t initSize = sizeof(GenericPtrList) + (sizeof(u_long) * startingSize);
+	GenericPtrList* newList = malloc(initSize);
+
+	if (newList != NULL) {
+		newList->capacity = startingSize;
 		newList->count = 0;
 	}
 
@@ -109,12 +123,8 @@ void AddItemToGenericPtrList(GenericPtrList** list, void* item) {
 	// Second check in case the list returned is the same one due to an error with malloc
 	if ((*list)->count < (*list)->capacity) {
         (*list)->array[(*list)->count] = item;
-		//const int offset = (*list)->size * (*list)->count;
-		//memcpy(&(*list)->array[offset], item, (*list)->size);
 		(*list)->count++;
 	}
-
-	//free(item);
 }
 
 void RemoveLastItemFromGenericPtrList(GenericPtrList* list) {

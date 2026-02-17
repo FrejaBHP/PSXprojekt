@@ -1,11 +1,9 @@
 #include "physics.h"
 #include "player.h"
+#include "level.h"
 
 
 PhysicsResolutionEntry PhysicsResolutionTable[16] = { 0 };
-
-GenericPtrList* activeCollisionPolyBoxes = { 0 };
-GenericPtrList* activeCollisionBoxes = { 0 };
 
 VECTOR playerSimulatedPosition;
 VECTOR playerSimulatedPositionFinal;
@@ -85,9 +83,9 @@ bool CanPlayerStep(const VECTOR* position) {
         (position->vz >> 12) + player->poly.boxWidth / 2
     };
 
-    for (size_t i = 0; i < activeCollisionBoxes->count; i++) {
+    for (size_t i = 0; i < CurrentLevelData->CollisionBoxes->count; i++) {
         CollisionOverlaps overlaps = { 0 };
-        ScanForOverlaps(&gridMins, &gridMaxs, activeCollisionBoxes->array[i], &overlaps);
+        ScanForOverlaps(&gridMins, &gridMaxs, CurrentLevelData->CollisionBoxes->array[i], &overlaps);
 
         if (overlaps.x == true && overlaps.y == true && overlaps.z == true) {
             canStep = false;
@@ -122,15 +120,15 @@ void SimulatePlayerMovementCollision() {
 
     size_t overlapsCount = 0;
 
-    for (size_t i = 0; i < activeCollisionBoxes->count; i++) {
+    for (size_t i = 0; i < CurrentLevelData->CollisionBoxes->count; i++) {
         CollisionOverlaps overlaps = { 0 };
         bool stepping = false;
 
-        ScanForOverlaps(&playerSimulatedPositionGridMins, &playerSimulatedPositionGridMaxs, activeCollisionBoxes->array[i], &overlaps);
+        ScanForOverlaps(&playerSimulatedPositionGridMins, &playerSimulatedPositionGridMaxs, CurrentLevelData->CollisionBoxes->array[i], &overlaps);
 
         // If player is at least above or underneath a collision box
         if (overlaps.x && overlaps.z) {
-            CollisionBox* colBox = activeCollisionBoxes->array[i];
+            CollisionBox* colBox = CurrentLevelData->CollisionBoxes->array[i];
             // If player is actually trying to enter collision box
             if (overlaps.y) {
                 
@@ -284,13 +282,13 @@ void ResolveOverlaps(const PhysicsResolutionEntry* table, const size_t numEntrie
         };
 
         CollisionOverlaps overlaps = { 0 };
-        ScanForOverlaps(&playerSimulatedPositionGridMins, &playerSimulatedPositionGridMaxs, activeCollisionBoxes->array[table[i].objIndex], &overlaps);
+        ScanForOverlaps(&playerSimulatedPositionGridMins, &playerSimulatedPositionGridMaxs, CurrentLevelData->CollisionBoxes->array[table[i].objIndex], &overlaps);
 
         if (!overlaps.x && !overlaps.y && !overlaps.z) {
             continue;
         }
 
-        CollisionBox* colBox = activeCollisionBoxes->array[table[i].objIndex];
+        CollisionBox* colBox = CurrentLevelData->CollisionBoxes->array[table[i].objIndex];
 
         if (overlaps.x && overlaps.y && overlaps.z) {
             if (table[i].axis == 0) {
@@ -323,25 +321,23 @@ void ResolveOverlaps(const PhysicsResolutionEntry* table, const size_t numEntrie
     player->poly.obj.position = playerSimulatedPositionFinal;
 }
 
-void InitPhysicsLists() {
-    activeCollisionPolyBoxes = CreateGenericPtrList();
-    activeCollisionBoxes = CreateGenericPtrList();
-}
-
 CollisionBox* CreateCollisionBox(long posX, long posY, long posZ, short dimX, short dimY, short dimZ) {
     CollisionBox* colBox = malloc(sizeof(CollisionBox));
     setVector(&colBox->gridPos, posX, posY, posZ);
     setVector(&colBox->dimensions, dimX, dimY, dimZ);
-    RegisterCollisionBox(colBox);
+    //RegisterCollisionBox(colBox);
 }
 
 void RegisterColPolyBox(StaticCollisionPolyBox* scpolybox) {
-    AddItemToGenericPtrList(&activeCollisionPolyBoxes, scpolybox);
+    AddItemToGenericPtrList(&CurrentLevelData->PolyBoxes, scpolybox);
     RegisterCollisionBox(&scpolybox->colBox);
+    //AddItemToGenericPtrList(&activeCollisionPolyBoxes, scpolybox);
+    //RegisterCollisionBox(&scpolybox->colBox);
 }
 
 void RegisterCollisionBox(CollisionBox* colBox) {
-    AddItemToGenericPtrList(&activeCollisionBoxes, colBox);
+    AddItemToGenericPtrList(&CurrentLevelData->CollisionBoxes, colBox);
+    //AddItemToGenericPtrList(&activeCollisionBoxes, colBox);
 }
 
 void CheckCollectiblePickup(LinkedList* list) {

@@ -8,6 +8,9 @@ src/clist.c \
 src/graphics.c \
 src/physics.c \
 src/player.c \
+src/geometry.c \
+src/level.c \
+src/levelOne.c \
 textures/woodPanel.tim \
 textures/woodDoor.tim \
 textures/cobble.tim \
@@ -15,6 +18,9 @@ textures/dlv_metalpanel.tim \
 textures/dlv_slate.tim \
 textures/dlv_stonebrick.tim \
 textures/goldCoin.tim \
+textures/grass.tim \
+textures/dirt.tim \
+textures/grassydirt.tim \
 
 CPPFLAGS += -Ithird_party/psyq-iwyu/include
 LDFLAGS += -Lthird_party/psyq/lib
