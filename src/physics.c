@@ -320,13 +320,15 @@ void ResolveOverlaps(const PhysicsResolutionEntry* table, const size_t numEntrie
     player->poly.obj.position = playerSimulatedPositionFinal;
 }
 
-CollisionBox* CreateCollisionBox(long posX, long posY, long posZ, short dimX, short dimY, short dimZ) {
+CollisionBox* CreateCollisionBox(GenericPtrList* list, short posX, short posY, short posZ, short dimX, short dimY, short dimZ) {
     CollisionBox* colBox = malloc(sizeof(CollisionBox));
     setVector(&colBox->gridPos, posX, posY, posZ);
     setVector(&colBox->dimensions, dimX, dimY, dimZ);
+    AddItemToGenericPtrList(&list, colBox);
     //RegisterCollisionBox(colBox);
 }
 
+/*
 void RegisterColPolyBox(StaticCollisionPolyBox* scpolybox) {
     AddItemToGenericPtrList(&CurrentLevelData->PolyBoxes, scpolybox);
     RegisterCollisionBox(&scpolybox->colBox);
@@ -338,6 +340,7 @@ void RegisterCollisionBox(CollisionBox* colBox) {
     AddItemToGenericPtrList(&CurrentLevelData->CollisionBoxes, colBox);
     //AddItemToGenericPtrList(&activeCollisionBoxes, colBox);
 }
+*/
 
 void CheckCollectiblePickup(LinkedList* list) {
     LLNode* node = list->head;

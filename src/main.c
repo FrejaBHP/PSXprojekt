@@ -412,33 +412,25 @@ int main(void) {
 
 
         UpdatePolyObject(&player->poly);
-
-        for (size_t i = 0; i < CurrentLevelData->TiledPolys->count; i++) {
-            TiledTexturedPolyObject* ttpobj = CurrentLevelData->TiledPolys->array[i];
-            UpdatePolyObject(&ttpobj->polyObj);
-        }
-
         UpdatePlayerCamera(&cameraFixedRot);
-
-        // Add polys to OT
+        // Reset perspective matrix
         CameraTransformMatrix(player->cameraPtr, &identity);
 
+        // Add polys to OT
         for (size_t i = 0; i < CurrentLevelData->TiledPolys->count; i++) {
-            TiledTexturedPolyObject* ttpobj = CurrentLevelData->TiledPolys->array[i];
-            //CameraTransformMatrix(player->cameraPtr, &ttpobj->polyObj.obj.transform);
-            AddTiledPolyFT(ttpobj);
+            StaticWorldGeometry* swg = CurrentLevelData->TiledPolys->array[i];
+            AddStaticWorldGeometry(swg);
         }
 
-        CameraTransformMatrix(player->cameraPtr, &player->poly.obj.transform);
-        AddPolyF(&player->poly);
-
         for (size_t i = 0; i < CurrentLevelData->PolyBoxes->count; i++) {
-            StaticCollisionPolyBox* scpolybox = CurrentLevelData->PolyBoxes->array[i];
-            CameraTransformMatrix(player->cameraPtr, &scpolybox->transform);
-            AddStaticPolyBox(scpolybox);
+            StaticWorldPolyBox* swpb = CurrentLevelData->PolyBoxes->array[i];
+            AddStaticWorldPolyBox(swpb);
         }
 
         IterateAddCollectibles(CurrentLevelData->Collectibles);
+
+        CameraTransformMatrix(player->cameraPtr, &player->poly.obj.transform);
+        AddPolyF(&player->poly);
 
         //FntPrint("PT: %04d, %04d, %04d\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
         //FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);

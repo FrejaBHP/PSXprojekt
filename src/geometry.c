@@ -1,12 +1,7 @@
 #include "geometry.h"
 #include "player.h"
 
-SVECTOR colBoxVertices[] = {
-    { -COLBOXHALFWIDTH, -COLBOXHEIGHT, -COLBOXHALFWIDTH, 0 }, {  COLBOXHALFWIDTH, -COLBOXHEIGHT, -COLBOXHALFWIDTH, 0 },
-    {  COLBOXHALFWIDTH,  0,            -COLBOXHALFWIDTH, 0 }, { -COLBOXHALFWIDTH,  0,            -COLBOXHALFWIDTH, 0 },
-    { -COLBOXHALFWIDTH, -COLBOXHEIGHT,  COLBOXHALFWIDTH, 0 }, {  COLBOXHALFWIDTH, -COLBOXHEIGHT,  COLBOXHALFWIDTH, 0 },
-    {  COLBOXHALFWIDTH,  0,             COLBOXHALFWIDTH, 0 }, { -COLBOXHALFWIDTH,  0,             COLBOXHALFWIDTH, 0 },
-};
+PolyData coinPolyData = { 0 };
 
 SVECTOR playerBoxVertices[] = {
     { -PLAYERWIDTHHALF, -PLAYERHEIGHT, -PLAYERWIDTHHALF, 0 }, {  PLAYERWIDTHHALF, -PLAYERHEIGHT, -PLAYERWIDTHHALF, 0 },
@@ -15,94 +10,19 @@ SVECTOR playerBoxVertices[] = {
     {  PLAYERWIDTHHALF, 0,  PLAYERWIDTHHALF, 0 }, { -PLAYERWIDTHHALF, 0,  PLAYERWIDTHHALF, 0 },
 };
 
-SVECTOR cubeVertices[] = {
-    { -CUBEHALF, -CUBEHALF, -CUBEHALF, 0 }, { CUBEHALF , -CUBEHALF, -CUBEHALF, 0 },
-    { CUBEHALF , CUBEHALF , -CUBEHALF, 0 }, { -CUBEHALF, CUBEHALF , -CUBEHALF, 0 },
-    { -CUBEHALF, -CUBEHALF, CUBEHALF , 0 }, { CUBEHALF , -CUBEHALF, CUBEHALF , 0 },
-    { CUBEHALF , CUBEHALF , CUBEHALF , 0 }, { -CUBEHALF, CUBEHALF , CUBEHALF , 0 }
-};
-
-SVECTOR tinyHouseVertices[] = {
-    { 0, -WALLHEIGHT, 0, 0 },               { WALLHALF, -WALLHEIGHT, 0, 0 },
-    { WALLHALF,  0,  0, 0 },                { 0,  0,          0, 0 },
-    { 0, -WALLHEIGHT,  WALLHALF * 2, 0 },   { WALLHALF, -WALLHEIGHT,  WALLHALF * 2, 0 },
-    { WALLHALF,  0,  WALLHALF * 2, 0 },     { 0,  0,           WALLHALF * 2, 0 },
-};
-
-SVECTOR tinyBoxVertices[] = {
-    { 0, -DOORHALF, 0, 0 },               { DOORHALF, -DOORHALF, 0, 0 },
-    { DOORHALF,  0,  0, 0 },                { 0,  0,          0, 0 },
-    { 0, -DOORHALF,  DOORHALF, 0 },   { DOORHALF, -DOORHALF,  DOORHALF, 0 },
-    { DOORHALF,  0,  DOORHALF, 0 },     { 0,  0,           DOORHALF, 0 },
-};
-
-SVECTOR boxVertices[] = {
-    { 0, -WALLHALF, 0, 0 },               { WALLHALF, -WALLHALF, 0, 0 },
-    { WALLHALF,  0,  0, 0 },                { 0,  0,          0, 0 },
-    { 0, -WALLHALF,  WALLHALF, 0 },   { WALLHALF, -WALLHALF,  WALLHALF, 0 },
-    { WALLHALF,  0,  WALLHALF, 0 },     { 0,  0,           WALLHALF, 0 },
-};
-
-SVECTOR platformVertices[] = {
-    { 0, -16, 0, 0 }, { WALLHALF, -16, 0, 0 },
-    { WALLHALF, 0,  0, 0 }, { 0, 0, 0, 0 },
-    { 0, -16,  WALLHALF, 0 }, { WALLHALF, -16,  WALLHALF, 0 },
-    { WALLHALF, 0,  WALLHALF, 0 }, { 0, 0, WALLHALF, 0 },
-};
-
-SVECTOR tWallVertices[] = {
-    { 0, -WALLHEIGHT, 0, 0 },               { WALLHALF * 2, -WALLHEIGHT, 0, 0 },
-    { WALLHALF * 2,  0,  0, 0 },    { 0,  0,          0, 0 },
-    { 0, -WALLHEIGHT,  WALLHALF, 0 },       { WALLHALF * 2, -WALLHEIGHT,  WALLHALF, 0 },
-    { WALLHALF * 2,  0,  WALLHALF, 0 },     { 0,  0,           WALLHALF, 0 }
-};
-
-SVECTOR tDoorVertices[] = {
-    { 0, -WALLHEIGHT, 0, 0 }, {  WALLHALF, -WALLHEIGHT, 0, 0 },
-    { WALLHALF,  0,          0, 0 }, { 0,  0,          0, 0 },
-    { 0, -WALLHEIGHT,  WALLHALF, 0 }, {  WALLHALF, -WALLHEIGHT,  WALLHALF, 0 },
-    { WALLHALF,  0,           WALLHALF, 0 }, { 0,  0,           WALLHALF, 0 },
-};
-
-long cubeIndices[] = {
-    0, 1, 2, 3, // Back?
-    1, 5, 6, 2, // Right?
-    5, 4, 7, 6, // Front?
-    4, 0, 3, 7, // Left?
-    4, 5, 1, 0, // Top
-    6, 7, 3, 2  // Bottom
-};
-
-long tubeIndices[] = {
-    0, 1, 2, 3, 
-    1, 5, 6, 2, 
-    5, 4, 7, 6, 
-    4, 0, 3, 7
-};
-
-SVECTOR floorVertices[] = {
-    { -FLOORHALF, 0, -FLOORHALF, 0 }, {  FLOORHALF, 0, -FLOORHALF, 0 },
-    {  FLOORHALF, 0,  FLOORHALF, 0 }, { -FLOORHALF, 0,  FLOORHALF, 0 }
-};
-
-SVECTOR longFloorVertices[] = {
-    { 0, 0, 0, 0 },                       { LONGFLOORLENGTH, 0, 0, 0 },
-    { LONGFLOORLENGTH, 0, FLOORSIZE, 0 }, { 0, 0, FLOORSIZE, 0 }
-};
-
-SVECTOR tiledHalfPanelVertices[] = {
-    { 0, -WALLHEIGHT, 0, 0 }, { WALLHALF, -WALLHEIGHT, 0, 0 },
-    { WALLHALF, 0, 0, 0 }, { 0, 0, 0, 0 }
-};
-
-SVECTOR tiledPanelVertices[] = {
-    { 0, -WALLHEIGHT, 0, 0 }, { WALLHEIGHT, -WALLHEIGHT, 0, 0 },
-    { WALLHEIGHT, 0, 0, 0 }, { 0, 0, 0, 0 }
-};
-
 SVECTOR collectibleVertices[] = {
     { -16, -16, 0, 0 }, { 16, -16, 0, 0 },
     { 16, 16, 0, 0 },   { -16, 16, 0, 0 }
+};
+
+long cubeIndices[] = {
+    // From camera starting position:
+    0, 1, 2, 3, // Front
+    1, 5, 6, 2, // Left
+    5, 4, 7, 6, // Back
+    4, 0, 3, 7, // Right
+    4, 5, 1, 0, // Top
+    6, 7, 3, 2  // Bottom
 };
 
 long windingIndices[] = {
@@ -112,9 +32,6 @@ long windingIndices[] = {
 long reverseWindingIndices[] = {
     1, 0, 3, 2
 };
-
-
-PolyData coinPolyData = { 0 };
 
 
 // Lazy and likely fragile attempt at influencing sorting order
@@ -189,6 +106,43 @@ void OrderThing(long* otz, int dp) {
 
 // ============== INITIALISERS/CONSTRUCTORS ==============
 
+PolyData SetupPolyData(TIM_IMAGE* tim, u_char u0, u_char v0, u_char u1, u_char v1) {
+    PolyData data = {
+        .tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y),
+        .clut = getClut(tim->crect->x, tim->crect->y),
+        .u0 = u0,   .v0 = v0,
+        .um = u1,   .vm = v1,
+        .r = 128,   .g = 128,   .b = 128
+    };
+
+    return data;
+}
+
+PolyData SetupPolyDataRGB(TIM_IMAGE* tim, u_char u0, u_char v0, u_char u1, u_char v1, u_char r, u_char g, u_char b) {
+    PolyData data = {
+        .tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y),
+        .clut = getClut(tim->crect->x, tim->crect->y),
+        .u0 = u0,   .v0 = v0,
+        .um = u1,   .vm = v1,
+        .r = r,     .g = g,     .b = b
+    };
+
+    return data;
+}
+
+PolyData SetupPolyDataUVRect(TIM_IMAGE* tim, UVRect* uvRect) {
+    PolyData data = {
+        .tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y),
+        .clut = getClut(tim->crect->x, tim->crect->y),
+        .u0 = uvRect->u0,   .v0 = uvRect->v0,
+        .um = uvRect->um,   .vm = uvRect->vm,
+        .r = 128,   .g = 128,   .b = 128
+    };
+
+    return data;
+}
+
+
 void CreatePlayer(CVECTOR* col) {
     player = calloc(1, sizeof(PlayerObject));
 
@@ -250,7 +204,6 @@ PolyObject* CreatePolyObjectF4(long posX, long posY, long posZ, short rotX, shor
             polyData[i].r = col[i].r;
             polyData[i].g = col[i].g;
             polyData[i].b = col[i].b;
-            /* code */
         }
         
         RotMatrix_gte(&pobj->obj.rotation, &pobj->obj.transform);
@@ -272,175 +225,6 @@ POLY_FT4* CreateTexturedPolygon4(TIM_IMAGE* tim, u_char u0, u_char v0, u_char u1
     return poly;
 }
 
-PolyData SetupPolyData(TIM_IMAGE* tim, u_char u0, u_char v0, u_char u1, u_char v1) {
-    PolyData data = {
-        .tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y),
-        .clut = getClut(tim->crect->x, tim->crect->y),
-        .u0 = u0,   .v0 = v0,
-        .um = u1,   .vm = v1,
-        .r = 128,   .g = 128,   .b = 128
-    };
-
-    return data;
-}
-
-PolyData SetupPolyDataRGB(TIM_IMAGE* tim, u_char u0, u_char v0, u_char u1, u_char v1, u_char r, u_char g, u_char b) {
-    PolyData data = {
-        .tpage = getTPage(tim->mode & 0x3, 0, tim->prect->x, tim->prect->y),
-        .clut = getClut(tim->crect->x, tim->crect->y),
-        .u0 = u0,   .v0 = v0,
-        .um = u1,   .vm = v1,
-        .r = r,     .g = g,     .b = b
-    };
-
-    return data;
-}
-
-// Used for creating a PolyObject out of a number of POLY_FT4 with the same textures
-TexturedPolyObject* CreateTexturedPolyObjectFT4(
-    long posX, long posY, long posZ, 
-    short rotX, short rotY, short rotZ, 
-    ushort plen, ushort psides, SVECTOR* vertPtr, long* indPtr, 
-    enum DrawPriority drprio, 
-    bool coll, int collH, int collW, bool fixed, 
-    TIM_IMAGE* tim, 
-    u_char u0, u_char v0, u_char uvwidth, u_char uvheight, 
-    bool repeating,
-    u_char twx, u_char twy, u_char tww, u_char twh) {
-    
-    TexturedPolyObject* tpobj = calloc(1, sizeof(TexturedPolyObject));
-    PolyData* polyData = calloc(1, sizeof(PolyData));
-    VECTOR pos = { posX, posY, posZ };
-    CVECTOR colour = { 128, 128, 128, 0 };
-
-    if (tpobj != NULL) {
-        setVector(&tpobj->polyObj.obj.position, pos.vx * ONE, pos.vy * ONE, pos.vz * ONE);
-        setVector(&tpobj->polyObj.obj.rotation, rotX, rotY, rotZ);
-        tpobj->polyObj.polyLength = plen;
-        tpobj->polyObj.polySides = psides;
-        tpobj->polyObj.verticesPtr = vertPtr;
-        tpobj->polyObj.indicesPtr = indPtr;
-        tpobj->polyObj.polyDataPtr = polyData;
-        tpobj->polyObj.drPrio = drprio;
-        tpobj->polyObj.collides = coll;
-        tpobj->polyObj.boxHeight = collH;
-        tpobj->polyObj.boxWidth = collW;
-        tpobj->polyObj.obj.isStatic = fixed;
-        tpobj->tim = tim;
-        tpobj->repeating = repeating;
-        setRECT(&tpobj->trect, twx, twy, tww, twh);
-        //platform->add = &AddPolyF;
-
-        *polyData = SetupPolyData(tim, u0, v0, uvwidth, uvheight);
-
-        RotMatrix_gte(&tpobj->polyObj.obj.rotation, &tpobj->polyObj.obj.transform);
-        TransMatrix(&tpobj->polyObj.obj.transform, &pos);
-    }
-
-    return tpobj;
-}
-
-TiledTexturedPolyObject* CreateTiledTexturedPolyObjectFT4(
-    long posX, long posY, long posZ, 
-    short rotX, short rotY, short rotZ, 
-    long* indPtr, 
-    u_char segX, u_char segY, u_char segZ,
-    u_char tileX, u_char tileY, u_char tileZ,
-    enum DrawPriority drprio, 
-    TIM_IMAGE* tim, 
-    u_char u0, u_char v0, u_char uvwidth, u_char uvheight) {
-    
-    TiledTexturedPolyObject* ttpobj = calloc(1, sizeof(TiledTexturedPolyObject));
-    VECTOR pos = { posX, posY, posZ };
-    CVECTOR colour = { 128, 128, 128, 0 };
-
-    if (ttpobj != NULL) {
-        setVector(&ttpobj->polyObj.obj.position, pos.vx * ONE, pos.vy * ONE, pos.vz * ONE);
-        setVector(&ttpobj->polyObj.obj.rotation, rotX, rotY, rotZ);
-        ttpobj->polyObj.polySides = 4;
-        ttpobj->polyObj.indicesPtr = indPtr;
-        ttpobj->polyObj.drPrio = drprio;
-        ttpobj->tim = tim;
-
-        ttpobj->totalPolys = tileX * tileY * tileZ;
-
-        PolyData* polyData = malloc(sizeof(PolyData));
-        *polyData = SetupPolyData(tim, u0, v0, uvwidth, uvheight);
-
-        // Can be heavily optimised by reusing vertices. Check notebook!
-        SVECTOR* tiledVerts = calloc(ttpobj->totalPolys * 4, sizeof(SVECTOR));
-
-        // Temp workaround until objects are redone
-        ttpobj->polyObj.polyLength = ttpobj->totalPolys;
-        
-        ttpobj->polyObj.polyDataPtr = polyData;
-        ttpobj->polyObj.verticesPtr = tiledVerts;
-
-        RotMatrix_gte(&ttpobj->polyObj.obj.rotation, &ttpobj->polyObj.obj.transform);
-        TransMatrix(&ttpobj->polyObj.obj.transform, &pos);
-
-        long vertIndex = 0;
-        
-        if (segX != 0 && segZ == 0) {
-            for (size_t y = 0; y < tileY; y++) {
-                for (size_t x = 0; x < tileX; x++) {
-                    setVector(&tiledVerts[vertIndex + 0], pos.vx + segX * x,             pos.vy - (-segY * y) - segY,  pos.vz + 0);
-                    setVector(&tiledVerts[vertIndex + 1], pos.vx + (segX * x) + segX,    pos.vy - (-segY * y) - segY,  pos.vz + 0);
-                    setVector(&tiledVerts[vertIndex + 2], pos.vx + (segX * x) + segX,    pos.vy - -segY * y,           pos.vz + 0);
-                    setVector(&tiledVerts[vertIndex + 3], pos.vx + segX * x,             pos.vy - -segY * y,           pos.vz + 0);
-
-                    vertIndex += 4;
-                }
-            }
-        }
-        else if (segZ != 0 && segX == 0) {
-            for (size_t y = 0; y < tileY; y++) {
-                for (size_t z = 0; z < tileZ; z++) {
-                    setVector(&tiledVerts[vertIndex + 0], pos.vx + 0, pos.vy - (-segY * y) - segY,    pos.vz + segZ * z);
-                    setVector(&tiledVerts[vertIndex + 1], pos.vx + 0, pos.vy - (-segY * y) - segY,    pos.vz + (segZ * z) + segZ);
-                    setVector(&tiledVerts[vertIndex + 2], pos.vx + 0, pos.vy - -segY * y,             pos.vz + (segZ * z) + segZ);
-                    setVector(&tiledVerts[vertIndex + 3], pos.vx + 0, pos.vy - -segY * y,             pos.vz + segZ * z);
-
-                    vertIndex += 4;
-                }
-            }
-        }
-        else if (segY == 0 && segX != 0 && segZ != 0) {
-            for (size_t z = 0; z < tileZ; z++) {
-                for (size_t x = 0; x < tileX; x++) {
-                    setVector(&tiledVerts[vertIndex + 0], pos.vx + segX * x,             pos.vy - 0,  pos.vz + (segZ * z) + segZ);
-                    setVector(&tiledVerts[vertIndex + 1], pos.vx + (segX * x) + segX,    pos.vy - 0,  pos.vz + (segZ * z) + segZ);
-                    setVector(&tiledVerts[vertIndex + 2], pos.vx + (segX * x) + segX,    pos.vy - 0,  pos.vz + segZ * z);
-                    setVector(&tiledVerts[vertIndex + 3], pos.vx + segX * x,             pos.vy - 0,  pos.vz + segZ * z);
-
-                    vertIndex += 4;
-                }
-            }
-        }
-    }
-
-    return ttpobj;
-}
-
-TiledTexturedPolyObject* CreateTiledTexturedPolyObjectFT4UVRect(
-    long posX, long posY, long posZ, 
-    short rotX, short rotY, short rotZ, 
-    long* indPtr, 
-    u_char segX, u_char segY, u_char segZ,
-    u_char tileX, u_char tileY, u_char tileZ,
-    enum DrawPriority drprio, 
-    TIM_IMAGE* tim, 
-    UVRect* uvRect) {
-
-    return CreateTiledTexturedPolyObjectFT4(
-        posX, posY, posZ, rotX, rotY, rotZ, indPtr,
-        segX, segY, segZ, tileX, tileY, tileZ,
-        drprio, tim, uvRect->u0, uvRect->v0, uvRect->um, uvRect->vm
-    );
-}
-
-
-
 StaticWorldGeometry* CreateStaticWorldGeometry(
     GenericPtrList* list,
     short posX, short posY, short posZ, 
@@ -448,8 +232,7 @@ StaticWorldGeometry* CreateStaticWorldGeometry(
     u_char segX, u_char segY, u_char segZ,
     u_char tileX, u_char tileY, u_char tileZ,
     enum DrawPriority drprio, 
-    TIM_IMAGE* tim, 
-    u_char u0, u_char v0, u_char uvwidth, u_char uvheight) {
+    TIM_IMAGE* tim, u_char u0, u_char v0, u_char uvwidth, u_char uvheight) {
     
     StaticWorldGeometry* swg = calloc(1, sizeof(StaticWorldGeometry));
 
@@ -521,8 +304,7 @@ StaticWorldGeometry* CreateStaticWorldGeometryUVRect(
     u_char segX, u_char segY, u_char segZ,
     u_char tileX, u_char tileY, u_char tileZ,
     enum DrawPriority drprio, 
-    TIM_IMAGE* tim, 
-    UVRect* uvRect) {
+    TIM_IMAGE* tim, UVRect* uvRect) {
 
     return CreateStaticWorldGeometry(
         list, posX, posY, posZ, indPtr,
@@ -531,37 +313,48 @@ StaticWorldGeometry* CreateStaticWorldGeometryUVRect(
     );
 }
 
-StaticCollisionPolyBox* CreateCollisionPolyBox(
-    long posX, long posY, long posZ,
-    short rotX, short rotY, short rotZ,
-    SVECTOR* vertPtr,
-    PolyData pd0, PolyData pd1, PolyData pd2,
-    PolyData pd3, PolyData pd4, PolyData pd5) {
+// Mask, in order (least sig to most sig bit, from starting camera position): Front, Right, Back, Left, Top, Bottom
+StaticWorldPolyBox* CreateStaticWorldPolyBox(
+    GenericPtrList* pbList, GenericPtrList* colList,
+    short posX, short posY, short posZ,
+    short lenX, short lenY, short lenZ,
+    enum DrawPriority drprio,
+    size_t polyMask,
+    PolyData* pd) {
 
-    StaticCollisionPolyBox* scpolybox = malloc(sizeof(StaticCollisionPolyBox));
-    VECTOR pos = { posX, posY, posZ };
+    StaticWorldPolyBox* swpb = malloc(sizeof(StaticWorldPolyBox));
+    
+    size_t numOfPolys = 0;
+    for (size_t i = 0; i < 6; i++) {
+        if (polyMask & (1 << i)) {
+            numOfPolys++;
+        }
+    }
+    
+    PolyData* polyData = malloc(sizeof(PolyData) * numOfPolys);
+    for (size_t i = 0; i < numOfPolys; i++) {
+        polyData[i] = pd[i];
+    }
 
-    setVector(&scpolybox->position, pos.vx * ONE, pos.vy * ONE, pos.vz * ONE);
-    setVector(&scpolybox->rotation, rotX, rotY, rotZ);
-    scpolybox->vertices = vertPtr;
-    setVector(&scpolybox->colBox.gridPos, pos.vx, pos.vy, pos.vz);
-    scpolybox->colBox.dimensions = scpolybox->vertices[5];
-    scpolybox->colBox.dimensions.vy = -scpolybox->colBox.dimensions.vy;
-    scpolybox->indices = cubeIndices;
+    setVector(&swpb->vertices[0],    posX,          posY - lenY,    posZ         );
+    setVector(&swpb->vertices[1],    posX + lenX,   posY - lenY,    posZ         );
+    setVector(&swpb->vertices[2],    posX + lenX,   posY,           posZ         );
+    setVector(&swpb->vertices[3],    posX,          posY,           posZ         );
+    setVector(&swpb->vertices[4],    posX,          posY - lenY,    posZ + lenZ  );
+    setVector(&swpb->vertices[5],    posX + lenX,   posY - lenY,    posZ + lenZ  );
+    setVector(&swpb->vertices[6],    posX + lenX,   posY,           posZ + lenZ  );
+    setVector(&swpb->vertices[7],    posX,          posY,           posZ + lenZ  );
 
-    scpolybox->polyData[0] = pd0;
-    scpolybox->polyData[1] = pd1;
-    scpolybox->polyData[2] = pd2;
-    scpolybox->polyData[3] = pd3;
-    scpolybox->polyData[4] = pd4;
-    scpolybox->polyData[5] = pd5;
+    swpb->polyMask = polyMask;
+    swpb->polyDataPtr = polyData;
 
-    RotMatrix_gte(&scpolybox->rotation, &scpolybox->transform);
-    TransMatrix(&scpolybox->transform, &pos);
+    setVector(&swpb->colBox.gridPos, posX, posY, posZ);
+    setVector(&swpb->colBox.dimensions, lenX, lenY, lenZ);
 
-    RegisterColPolyBox(scpolybox);
+    AddItemToGenericPtrList(&pbList, swpb);
+    AddItemToGenericPtrList(&colList, &swpb->colBox);
 
-    return scpolybox;
+    return swpb;
 }
 
 CollectibleObject* CreateCollectibleObject(long posX, long posY, long posZ, enum CollectibleType cType) {
@@ -707,7 +500,7 @@ TestTileMultiPoly* CreateTestMultiPoly(
 
 
 
-// ============== UPDATES ==============
+// ============== RENDERING ROUTINES ==============
 
 
 void AddPolyF(PolyObject* pobj) {
@@ -837,79 +630,31 @@ void AddPolyFT(TexturedPolyObject* tpobj) {
 }
 
 // Tiles polys side by side
-void AddTiledPolyFT(TiledTexturedPolyObject* ttpobj) {
+void AddStaticWorldGeometry(StaticWorldGeometry* swg) {
     POLY_FT4* poly;
     long p, otz, flg;
     int nclip;
 
-    if (ttpobj->polyObj.polySides == 4) {
-        for (size_t i = 0; i < (ttpobj->polyObj.polyLength * ttpobj->polyObj.polySides); i += ttpobj->polyObj.polySides, ++poly) {
-            poly = (POLY_FT4*)primPtr;
-
-            gte_ldv3(&ttpobj->polyObj.verticesPtr[i + ttpobj->polyObj.indicesPtr[0]], &ttpobj->polyObj.verticesPtr[i + ttpobj->polyObj.indicesPtr[1]], &ttpobj->polyObj.verticesPtr[i + ttpobj->polyObj.indicesPtr[3]]);
-            //gte_ldv3(&ttpobj->polyObj.verticesPtr[i + 0], &ttpobj->polyObj.verticesPtr[i + 1], &ttpobj->polyObj.verticesPtr[i + 3]);
-            gte_rtpt();
-            gte_nclip();
-            gte_stopz(&nclip);
-            
-            if (nclip <= 0) {
-                continue;
-            }
-
-            setPolyFT4(poly);
-            poly->tpage = ttpobj->polyObj.polyDataPtr->tpage;
-            poly->clut = ttpobj->polyObj.polyDataPtr->clut;
-            setRGB0(poly, ttpobj->polyObj.polyDataPtr->r, ttpobj->polyObj.polyDataPtr->g, ttpobj->polyObj.polyDataPtr->b);
-            setUVWH(poly, ttpobj->polyObj.polyDataPtr->u0, ttpobj->polyObj.polyDataPtr->v0, ttpobj->polyObj.polyDataPtr->um, ttpobj->polyObj.polyDataPtr->vm);
-
-            gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
-            gte_ldv0(&ttpobj->polyObj.verticesPtr[i + ttpobj->polyObj.indicesPtr[2]]);
-            gte_rtps();
-
-            gte_avsz4();
-            gte_stotz(&otz);
-            gte_stsxy(&poly->x3);
-            
-            if ((otz > 0) && (otz < OTSIZE)) {
-                OrderThing(&otz, ttpobj->polyObj.drPrio);
-                addPrim(cdb->ot[otz], poly);
-            }
-
-            primPtr += sizeof(POLY_FT4);
-        }
-    }
-}
-
-// Polygon box wrapped around collision box
-void AddStaticPolyBox(StaticCollisionPolyBox* scpolybox) {
-    POLY_FT4* poly;
-    long p, otz, flg;
-    int nclip;
-
-    for (size_t i = 0; i < 6; ++i) {
-        if (scpolybox->polyData[i].tpage == 0) {
-            continue;
-        }
-
+    for (size_t i = 0; i < swg->totalPolys * 4; i += 4, ++poly) {
         poly = (POLY_FT4*)primPtr;
 
-        gte_ldv3(&scpolybox->vertices[scpolybox->indices[(4 * i) + 0]], &scpolybox->vertices[scpolybox->indices[(4 * i) + 1]], &scpolybox->vertices[scpolybox->indices[(4 * i) + 3]]);
+        gte_ldv3(&swg->verticesPtr[i + swg->indicesPtr[0]], &swg->verticesPtr[i + swg->indicesPtr[1]], &swg->verticesPtr[i + swg->indicesPtr[3]]);
         gte_rtpt();
         gte_nclip();
         gte_stopz(&nclip);
-
+        
         if (nclip <= 0) {
             continue;
         }
 
         setPolyFT4(poly);
-        poly->tpage = scpolybox->polyData[i].tpage;
-        poly->clut = scpolybox->polyData[i].clut;
-        setRGB0(poly, scpolybox->polyData[i].r, scpolybox->polyData[i].g, scpolybox->polyData[i].b);
-        setUVWH(poly, scpolybox->polyData[i].u0, scpolybox->polyData[i].v0, scpolybox->polyData[i].um, scpolybox->polyData[i].vm);
+        poly->tpage = swg->polyDataPtr->tpage;
+        poly->clut = swg->polyDataPtr->clut;
+        setRGB0(poly, swg->polyDataPtr->r, swg->polyDataPtr->g, swg->polyDataPtr->b);
+        setUVWH(poly, swg->polyDataPtr->u0, swg->polyDataPtr->v0, swg->polyDataPtr->um, swg->polyDataPtr->vm);
 
         gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
-        gte_ldv0(&scpolybox->vertices[scpolybox->indices[(4 * i) + 2]]);
+        gte_ldv0(&swg->verticesPtr[i + swg->indicesPtr[2]]);
         gte_rtps();
 
         gte_avsz4();
@@ -917,10 +662,60 @@ void AddStaticPolyBox(StaticCollisionPolyBox* scpolybox) {
         gte_stsxy(&poly->x3);
         
         if ((otz > 0) && (otz < OTSIZE)) {
+            OrderThing(&otz, swg->drPrio);
             addPrim(cdb->ot[otz], poly);
         }
 
         primPtr += sizeof(POLY_FT4);
+    }
+}
+
+// Polygon box wrapped around collision box
+void AddStaticWorldPolyBox(StaticWorldPolyBox* swpb) {
+    POLY_FT4* poly;
+    long p, otz, flg;
+    int nclip;
+    
+    size_t polyIndex = 0;
+
+    for (size_t i = 0; i < 6; ++i) {
+        if (!(swpb->polyMask & (1 << i))) {
+            continue;
+        }
+
+        poly = (POLY_FT4*)primPtr;
+
+        gte_ldv3(&swpb->vertices[cubeIndices[(4 * i) + 0]], &swpb->vertices[cubeIndices[(4 * i) + 1]], &swpb->vertices[cubeIndices[(4 * i) + 3]]);
+        gte_rtpt();
+        gte_nclip();
+        gte_stopz(&nclip);
+
+        if (nclip <= 0) {
+            polyIndex++;
+            continue;
+        }
+
+        setPolyFT4(poly);
+        poly->tpage = swpb->polyDataPtr[polyIndex].tpage;
+        poly->clut = swpb->polyDataPtr[polyIndex].clut;
+        setRGB0(poly, swpb->polyDataPtr[polyIndex].r, swpb->polyDataPtr[polyIndex].g, swpb->polyDataPtr[polyIndex].b);
+        setUVWH(poly, swpb->polyDataPtr[polyIndex].u0, swpb->polyDataPtr[polyIndex].v0, swpb->polyDataPtr[polyIndex].um, swpb->polyDataPtr[polyIndex].vm);
+
+        gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
+        gte_ldv0(&swpb->vertices[cubeIndices[(4 * i) + 2]]);
+        gte_rtps();
+
+        gte_avsz4();
+        gte_stotz(&otz);
+        gte_stsxy(&poly->x3);
+        
+        if ((otz > 0) && (otz < OTSIZE)) {
+            OrderThing(&otz, swpb->drPrio);
+            addPrim(cdb->ot[otz], poly);
+        }
+
+        primPtr += sizeof(POLY_FT4);
+        polyIndex++;
     }
 }
 

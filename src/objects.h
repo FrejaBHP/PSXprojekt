@@ -38,45 +38,6 @@ typedef struct CollisionBox {
     SVECTOR dimensions;
 } CollisionBox;
 
-typedef struct RemoteCollisionBox {
-    SVECTOR gridPosition;
-    CollisionBox cbox;
-} RemoteCollisionBox;
-
-typedef struct StaticCollisionPolyBox {
-    VECTOR position;
-    SVECTOR rotation;
-    MATRIX transform;
-    CollisionBox colBox;
-
-    PolyData polyData[6];
-    SVECTOR* vertices;
-    long* indices;
-} StaticCollisionPolyBox;
-
-
-
-typedef struct StaticWorldGeometry {
-    PolyData* polyDataPtr;
-    SVECTOR* verticesPtr;
-    long* indicesPtr;
-    enum DrawPriority drPrio;
-    TIM_IMAGE* tim;
-    u_char totalPolys;
-} StaticWorldGeometry;
-
-
-
-// Holds Position, Rotation and Transform for an "object". Probably could use a better name.
-typedef struct GameObject {
-    VECTOR position; // Position to update the Transform with. Position is ONE (4096) bigger than the actual values stored in the Transform
-    SVECTOR rotation;
-    MATRIX transform;
-    VECTOR velocity; // Velocity, expressed in fixed-point integers (* ONE)
-    long maxSpeed;
-    bool isStatic;
-} GameObject;
-
 // Same as GameObject, except uses a VECTOR for rotation instead of SVECTOR
 typedef struct CameraObject {
     VECTOR position;
@@ -90,6 +51,35 @@ typedef struct CollectibleObject {
     MATRIX transform;
     enum CollectibleType cType;
 } CollectibleObject;
+
+typedef struct StaticWorldGeometry {
+    PolyData* polyDataPtr;
+    SVECTOR* verticesPtr;
+    long* indicesPtr;
+    enum DrawPriority drPrio;
+    TIM_IMAGE* tim;
+    size_t totalPolys;
+} StaticWorldGeometry;
+
+typedef struct StaticWorldPolyBox {
+    PolyData* polyDataPtr;
+    SVECTOR vertices[8];
+    enum DrawPriority drPrio;
+    CollisionBox colBox;
+    size_t polyMask;
+} StaticWorldPolyBox;
+
+// ============= LEGACY, CLEAN UP =============
+
+// Holds Position, Rotation and Transform for an "object". Probably could use a better name.
+typedef struct GameObject {
+    VECTOR position; // Position to update the Transform with. Position is ONE (4096) bigger than the actual values stored in the Transform
+    SVECTOR rotation;
+    MATRIX transform;
+    VECTOR velocity; // Velocity, expressed in fixed-point integers (* ONE)
+    long maxSpeed;
+    bool isStatic;
+} GameObject;
 
 // Extends GameObject and can also hold all the data needed to draw a polygon
 typedef struct PolyObject {
@@ -118,12 +108,6 @@ typedef struct TexturedPolyObject {
     bool repeating;
 } TexturedPolyObject;
 
-typedef struct TiledTexturedPolyObject {
-    PolyObject polyObj;
-    TIM_IMAGE* tim;
-    u_char totalPolys;
-} TiledTexturedPolyObject;
-
 typedef struct TestTileMultiPoly {
     GameObject obj; // Compatibility
 
@@ -150,7 +134,6 @@ typedef struct TestTileMultiPoly {
     //u_char vh;
 
     bool reverseOrder;
-
 } TestTileMultiPoly;
 
 #endif
