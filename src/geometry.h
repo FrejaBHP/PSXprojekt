@@ -78,6 +78,16 @@ TiledTexturedPolyObject* CreateTiledTexturedPolyObjectFT4(
     TIM_IMAGE* tim, 
     u_char u0, u_char v0, u_char uvwidth, u_char uvheight);
 
+TiledTexturedPolyObject* CreateTiledTexturedPolyObjectFT4UVRect(
+    long posX, long posY, long posZ, 
+    short rotX, short rotY, short rotZ, 
+    long* indPtr, 
+    u_char segX, u_char segY, u_char segZ,
+    u_char tileX, u_char tileY, u_char tileZ,
+    enum DrawPriority drprio, 
+    TIM_IMAGE* tim, 
+    UVRect* uvRect);
+
 StaticCollisionPolyBox* CreateCollisionPolyBox(
     long posX, long posY, long posZ,
     short rotX, short rotY, short rotZ,

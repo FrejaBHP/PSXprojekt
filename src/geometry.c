@@ -105,12 +105,12 @@ SVECTOR collectibleVertices[] = {
     { 16, 16, 0, 0 },   { -16, 16, 0, 0 }
 };
 
-long reverseWindingIndices[] = {
-    0, 3, 2, 1
-};
-
 long windingIndices[] = {
     0, 1, 2, 3
+};
+
+long reverseWindingIndices[] = {
+    1, 0, 3, 2
 };
 
 
@@ -203,7 +203,7 @@ void CreatePlayer(CVECTOR* col) {
         player->poly.verticesPtr = playerBoxVertices;
         player->poly.indicesPtr = cubeIndices;
         player->poly.polyDataPtr = polyData;
-        player->poly.drPrio = DRP_High;
+        player->poly.drPrio = DRP_Higher;
         player->poly.collides = false;
         player->poly.boxHeight = PLAYERHEIGHT;
         player->poly.boxWidth = PLAYERWIDTHHALF * 2;
@@ -384,10 +384,10 @@ TiledTexturedPolyObject* CreateTiledTexturedPolyObjectFT4(
         if (segX != 0 && segZ == 0) {
             for (size_t y = 0; y < tileY; y++) {
                 for (size_t x = 0; x < tileX; x++) {
-                    setVector(&tiledVerts[vertIndex + 0], segX * x,             (-segY * y) - segY,  0);
-                    setVector(&tiledVerts[vertIndex + 1], (segX * x) + segX,    (-segY * y) - segY,  0);
-                    setVector(&tiledVerts[vertIndex + 2], (segX * x) + segX,    -segY * y,           0);
-                    setVector(&tiledVerts[vertIndex + 3], segX * x,             -segY * y,           0);
+                    setVector(&tiledVerts[vertIndex + 0], pos.vx + segX * x,             pos.vy - (-segY * y) - segY,  pos.vz + 0);
+                    setVector(&tiledVerts[vertIndex + 1], pos.vx + (segX * x) + segX,    pos.vy - (-segY * y) - segY,  pos.vz + 0);
+                    setVector(&tiledVerts[vertIndex + 2], pos.vx + (segX * x) + segX,    pos.vy - -segY * y,           pos.vz + 0);
+                    setVector(&tiledVerts[vertIndex + 3], pos.vx + segX * x,             pos.vy - -segY * y,           pos.vz + 0);
 
                     vertIndex += 4;
                 }
@@ -396,10 +396,10 @@ TiledTexturedPolyObject* CreateTiledTexturedPolyObjectFT4(
         else if (segZ != 0 && segX == 0) {
             for (size_t y = 0; y < tileY; y++) {
                 for (size_t z = 0; z < tileZ; z++) {
-                    setVector(&tiledVerts[vertIndex + 0], 0, (-segY * y) - segY,    segZ * z);
-                    setVector(&tiledVerts[vertIndex + 1], 0, (-segY * y) - segY,    (segZ * z) + segZ);
-                    setVector(&tiledVerts[vertIndex + 2], 0, -segY * y,             (segZ * z) + segZ);
-                    setVector(&tiledVerts[vertIndex + 3], 0, -segY * y,             segZ * z);
+                    setVector(&tiledVerts[vertIndex + 0], pos.vx + 0, pos.vy - (-segY * y) - segY,    pos.vz + segZ * z);
+                    setVector(&tiledVerts[vertIndex + 1], pos.vx + 0, pos.vy - (-segY * y) - segY,    pos.vz + (segZ * z) + segZ);
+                    setVector(&tiledVerts[vertIndex + 2], pos.vx + 0, pos.vy - -segY * y,             pos.vz + (segZ * z) + segZ);
+                    setVector(&tiledVerts[vertIndex + 3], pos.vx + 0, pos.vy - -segY * y,             pos.vz + segZ * z);
 
                     vertIndex += 4;
                 }
@@ -408,10 +408,10 @@ TiledTexturedPolyObject* CreateTiledTexturedPolyObjectFT4(
         else if (segY == 0 && segX != 0 && segZ != 0) {
             for (size_t z = 0; z < tileZ; z++) {
                 for (size_t x = 0; x < tileX; x++) {
-                    setVector(&tiledVerts[vertIndex + 0], segX * x,             0,  (segZ * z) + segZ);
-                    setVector(&tiledVerts[vertIndex + 1], (segX * x) + segX,    0,  (segZ * z) + segZ);
-                    setVector(&tiledVerts[vertIndex + 2], (segX * x) + segX,    0,  segZ * z);
-                    setVector(&tiledVerts[vertIndex + 3], segX * x,             0,  segZ * z);
+                    setVector(&tiledVerts[vertIndex + 0], pos.vx + segX * x,             pos.vy - 0,  pos.vz + (segZ * z) + segZ);
+                    setVector(&tiledVerts[vertIndex + 1], pos.vx + (segX * x) + segX,    pos.vy - 0,  pos.vz + (segZ * z) + segZ);
+                    setVector(&tiledVerts[vertIndex + 2], pos.vx + (segX * x) + segX,    pos.vy - 0,  pos.vz + segZ * z);
+                    setVector(&tiledVerts[vertIndex + 3], pos.vx + segX * x,             pos.vy - 0,  pos.vz + segZ * z);
 
                     vertIndex += 4;
                 }
@@ -420,6 +420,115 @@ TiledTexturedPolyObject* CreateTiledTexturedPolyObjectFT4(
     }
 
     return ttpobj;
+}
+
+TiledTexturedPolyObject* CreateTiledTexturedPolyObjectFT4UVRect(
+    long posX, long posY, long posZ, 
+    short rotX, short rotY, short rotZ, 
+    long* indPtr, 
+    u_char segX, u_char segY, u_char segZ,
+    u_char tileX, u_char tileY, u_char tileZ,
+    enum DrawPriority drprio, 
+    TIM_IMAGE* tim, 
+    UVRect* uvRect) {
+
+    return CreateTiledTexturedPolyObjectFT4(
+        posX, posY, posZ, rotX, rotY, rotZ, indPtr,
+        segX, segY, segZ, tileX, tileY, tileZ,
+        drprio, tim, uvRect->u0, uvRect->v0, uvRect->um, uvRect->vm
+    );
+}
+
+
+
+StaticWorldGeometry* CreateStaticWorldGeometry(
+    GenericPtrList* list,
+    short posX, short posY, short posZ, 
+    long* indPtr, 
+    u_char segX, u_char segY, u_char segZ,
+    u_char tileX, u_char tileY, u_char tileZ,
+    enum DrawPriority drprio, 
+    TIM_IMAGE* tim, 
+    u_char u0, u_char v0, u_char uvwidth, u_char uvheight) {
+    
+    StaticWorldGeometry* swg = calloc(1, sizeof(StaticWorldGeometry));
+
+    if (swg != NULL) {
+        swg->indicesPtr = indPtr;
+        swg->drPrio = drprio;
+        swg->tim = tim;
+
+        swg->totalPolys = tileX * tileY * tileZ;
+
+        PolyData* polyData = malloc(sizeof(PolyData));
+        *polyData = SetupPolyData(tim, u0, v0, uvwidth, uvheight);
+
+        // Can be heavily optimised by reusing vertices. Check notebook!
+        SVECTOR* tiledVerts = calloc(swg->totalPolys * 4, sizeof(SVECTOR));
+        
+        swg->polyDataPtr = polyData;
+        swg->verticesPtr = tiledVerts;
+
+        size_t vertIndex = 0;
+        
+        if (segX != 0 && segZ == 0) {
+            for (size_t y = 0; y < tileY; y++) {
+                for (size_t x = 0; x < tileX; x++) {
+                    setVector(&tiledVerts[vertIndex + 0], posX + segX * x,             posY - (-segY * y) - segY,  posZ + 0);
+                    setVector(&tiledVerts[vertIndex + 1], posX + (segX * x) + segX,    posY - (-segY * y) - segY,  posZ + 0);
+                    setVector(&tiledVerts[vertIndex + 2], posX + (segX * x) + segX,    posY - -segY * y,           posZ + 0);
+                    setVector(&tiledVerts[vertIndex + 3], posX + segX * x,             posY - -segY * y,           posZ + 0);
+
+                    vertIndex += 4;
+                }
+            }
+        }
+        else if (segZ != 0 && segX == 0) {
+            for (size_t y = 0; y < tileY; y++) {
+                for (size_t z = 0; z < tileZ; z++) {
+                    setVector(&tiledVerts[vertIndex + 0], posX + 0, posY - (-segY * y) - segY,    posZ + segZ * z);
+                    setVector(&tiledVerts[vertIndex + 1], posX + 0, posY - (-segY * y) - segY,    posZ + (segZ * z) + segZ);
+                    setVector(&tiledVerts[vertIndex + 2], posX + 0, posY - -segY * y,             posZ + (segZ * z) + segZ);
+                    setVector(&tiledVerts[vertIndex + 3], posX + 0, posY - -segY * y,             posZ + segZ * z);
+
+                    vertIndex += 4;
+                }
+            }
+        }
+        else if (segY == 0 && segX != 0 && segZ != 0) {
+            for (size_t z = 0; z < tileZ; z++) {
+                for (size_t x = 0; x < tileX; x++) {
+                    setVector(&tiledVerts[vertIndex + 0], posX + segX * x,             posY - 0,  posZ + (segZ * z) + segZ);
+                    setVector(&tiledVerts[vertIndex + 1], posX + (segX * x) + segX,    posY - 0,  posZ + (segZ * z) + segZ);
+                    setVector(&tiledVerts[vertIndex + 2], posX + (segX * x) + segX,    posY - 0,  posZ + segZ * z);
+                    setVector(&tiledVerts[vertIndex + 3], posX + segX * x,             posY - 0,  posZ + segZ * z);
+
+                    vertIndex += 4;
+                }
+            }
+        }
+    }
+
+    AddItemToGenericPtrList(&list, swg);
+
+    return swg;
+}
+
+StaticWorldGeometry* CreateStaticWorldGeometryUVRect(
+    GenericPtrList* list,
+    short posX, short posY, short posZ, 
+    long* indPtr, 
+    u_char segX, u_char segY, u_char segZ,
+    u_char tileX, u_char tileY, u_char tileZ,
+    enum DrawPriority drprio, 
+    TIM_IMAGE* tim, 
+    UVRect* uvRect) {
+
+    return CreateStaticWorldGeometry(
+        list, posX, posY, posZ, indPtr,
+        segX, segY, segZ, tileX, tileY, tileZ,
+        drprio, tim, uvRect->u0, uvRect->v0, uvRect->um, uvRect->vm
+    );
 }
 
 StaticCollisionPolyBox* CreateCollisionPolyBox(
@@ -737,7 +846,8 @@ void AddTiledPolyFT(TiledTexturedPolyObject* ttpobj) {
         for (size_t i = 0; i < (ttpobj->polyObj.polyLength * ttpobj->polyObj.polySides); i += ttpobj->polyObj.polySides, ++poly) {
             poly = (POLY_FT4*)primPtr;
 
-            gte_ldv3(&ttpobj->polyObj.verticesPtr[i + 0], &ttpobj->polyObj.verticesPtr[i + 1], &ttpobj->polyObj.verticesPtr[i + 3]);
+            gte_ldv3(&ttpobj->polyObj.verticesPtr[i + ttpobj->polyObj.indicesPtr[0]], &ttpobj->polyObj.verticesPtr[i + ttpobj->polyObj.indicesPtr[1]], &ttpobj->polyObj.verticesPtr[i + ttpobj->polyObj.indicesPtr[3]]);
+            //gte_ldv3(&ttpobj->polyObj.verticesPtr[i + 0], &ttpobj->polyObj.verticesPtr[i + 1], &ttpobj->polyObj.verticesPtr[i + 3]);
             gte_rtpt();
             gte_nclip();
             gte_stopz(&nclip);
@@ -753,7 +863,7 @@ void AddTiledPolyFT(TiledTexturedPolyObject* ttpobj) {
             setUVWH(poly, ttpobj->polyObj.polyDataPtr->u0, ttpobj->polyObj.polyDataPtr->v0, ttpobj->polyObj.polyDataPtr->um, ttpobj->polyObj.polyDataPtr->vm);
 
             gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
-            gte_ldv0(&ttpobj->polyObj.verticesPtr[i + 2]);
+            gte_ldv0(&ttpobj->polyObj.verticesPtr[i + ttpobj->polyObj.indicesPtr[2]]);
             gte_rtps();
 
             gte_avsz4();

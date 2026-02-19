@@ -7,7 +7,6 @@ PhysicsResolutionEntry PhysicsResolutionTable[16] = { 0 };
 
 VECTOR playerSimulatedPosition;
 VECTOR playerSimulatedPositionFinal;
-const int pickupRange = ONE * 32;
 
 static int CompareAxisSortX(const void* a, const void* b) {
     PhysicsResolutionEntry dataA = *(const PhysicsResolutionEntry*)a;
@@ -135,7 +134,7 @@ void SimulatePlayerMovementCollision() {
                 if (player->poly.obj.velocity.vy == 0 && isPlayerOnFloor && !playerHasStepped) {
                     long stepheight = playerSimulatedPositionGridMins.vy - colBox->gridPos.vy + colBox->dimensions.vy;
 
-                    if (stepheight <= 32 && stepheight > 0) {
+                    if (stepheight <= STEPPABLEHEIGHT && stepheight > 0) {
                         // Second simulated position to check if player is trying to step up into geometry
                         VECTOR playerStepPosition = playerSimulatedPositionFinal;
                         playerStepPosition.vy = (colBox->gridPos.vy * ONE) - (colBox->dimensions.vy * ONE);
@@ -358,7 +357,7 @@ void CheckCollectiblePickup(LinkedList* list) {
         diffY = abs(cobj->position.vy - playerCY);
         diffZ = abs(cobj->position.vz - player->poly.obj.position.vz);
 
-        if (diffX < pickupRange && diffY < pickupRange && diffZ < pickupRange) {
+        if (diffX < PICKUPRANGE && diffY < PICKUPRANGE && diffZ < PICKUPRANGE) {
             nodePendingRemoval = node;
             collectedCoins++;
         }

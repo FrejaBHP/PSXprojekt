@@ -19,6 +19,18 @@ TIM_IMAGE grass_tim;
 TIM_IMAGE dirt_tim;
 TIM_IMAGE grassydirt_tim;
 
+UVRect woodPanel_UVR = { 0, 0, 63, 127 };
+UVRect woodDoor_UVR = { 64, 0, 63, 127 };
+UVRect cobble_UVR = { 0, 128, 127, 127 };
+UVRect dlv_metalpanel_UVR = { 0, 0, 127, 127 };
+UVRect dlv_slate_UVR = { 0, 128, 63, 63 };
+UVRect dlv_stonebrick_UVR = { 128, 0, 127, 127 };
+UVRect grass_UVR = { 0, 192, 63, 63 };
+UVRect dirt_UVR = { 64, 128, 63, 63 };
+UVRect grassydirt_UVR = { 64, 192, 63, 63 };
+
+UVRect goldCoin_UVR = { 0, 128, 31, 31 };
+
 MATRIX identity = {
 	{
 		{ 4096, 0, 0 },
@@ -121,10 +133,11 @@ void InitGraphics() {
     LoadTexture(dlv_metalpanel_start, &dlv_metalpanel_tim);
     LoadTexture(dlv_slate_start, &dlv_slate_tim);
     LoadTexture(dlv_stonebrick_start, &dlv_stonebrick_tim);
-    LoadTexture(goldCoin_start, &goldCoin_tim);
     LoadTexture(grass_start, &grass_tim);
     LoadTexture(dirt_start, &dirt_tim);
     LoadTexture(grassydirt_start, &grassydirt_tim);
+
+    LoadTexture(goldCoin_start, &goldCoin_tim);
 
     // Actually display the things on screen
     SetDispMask(1);

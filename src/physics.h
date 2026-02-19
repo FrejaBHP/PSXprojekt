@@ -8,6 +8,9 @@
 #include "objects.h"
 #include "clist.h"
 
+#define STEPPABLEHEIGHT 24
+#define PICKUPRANGE ONE * 32
+
 typedef struct PhysicsResolutionEntry {
     u_short objIndex;
     u_char axis; // 0 = X, 1 = Y, 2 = Z

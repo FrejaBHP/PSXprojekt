@@ -56,6 +56,17 @@ typedef struct StaticCollisionPolyBox {
 
 
 
+typedef struct StaticWorldGeometry {
+    PolyData* polyDataPtr;
+    SVECTOR* verticesPtr;
+    long* indicesPtr;
+    enum DrawPriority drPrio;
+    TIM_IMAGE* tim;
+    u_char totalPolys;
+} StaticWorldGeometry;
+
+
+
 // Holds Position, Rotation and Transform for an "object". Probably could use a better name.
 typedef struct GameObject {
     VECTOR position; // Position to update the Transform with. Position is ONE (4096) bigger than the actual values stored in the Transform

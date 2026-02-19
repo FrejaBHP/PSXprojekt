@@ -47,7 +47,6 @@ typedef struct GamePad {
     Vector2UB rightstick;
 } GamePad;
 
-//LinkedList* collectibleList;
 
 MATRIX cameraRotationMatrix = { 0 };
 SVECTOR cameraRotation = { 0 };
@@ -173,11 +172,6 @@ static void IterateAddCollectibles(LinkedList* list) {
     }
 }
 
-void resetCube(SVECTOR* rot, VECTOR* trans) {
-    //setVector(rot, 0, 0, 0);
-    //setVector(trans, 0, (-CUBEHALF - 32) * ONE, DISTTHING * ONE);
-}
-
 void SpawnCoin(u_char num) {
     const long x = 64;
     CollectibleObject* coin;
@@ -257,316 +251,15 @@ int main(void) {
         col[i].b = rand();
     }
 
-    //collectibleList = CreateGenericLinkedList();
     coinPolyData = SetupPolyData(&goldCoin_tim, 0, 128, 32, 32);
 
     InitialiseLevelOne();
     SetActiveLevelOneOverworld();
 
     CreatePlayer(col);
+
     cameraRotationMatrix = identity;
-    //cameraRotationMatrix.t[1] = (PLAYERHEIGHT * 2);
     cameraRotationMatrix.t[2] = CAMERADISTANCE;
-
-    /*
-    PolyObject* colPlatform = CreatePolyObjectF4(
-        0, -24, DISTTHING / 2, 
-        0, 0, 0,
-        6, 4, colBoxVertices, cubeIndices,
-        DRP_Neutral, 
-        true, 12, 64, true, col
-    );
-
-    PolyObject* cube = CreatePolyObjectF4(
-        0, -CUBEHALF - 32, DISTTHING, 
-        0, 0, 0,
-        6, 4, cubeVertices, cubeIndices,
-        DRP_Neutral, 
-        false, 0, 0, false, col
-    );
-
-
-    TexturedPolyObject* floor = CreateTexturedPolyObjectFT4(
-        0, 0, DISTTHING, 
-        0, 0, 0,
-        1, 4, floorVertices, reverseWindingIndices,
-        DRP_Low, 
-        false, 0, 0, true, 
-        &cobble_tim, 
-        0, 127, 128, 128, 
-        false,
-        0, 127, 128, 128
-    );
-
-
-    TexturedPolyObject* tWallLeft = CreateTexturedPolyObjectFT4(
-        -512, 0, 96, 
-        0, 0, 0,
-        //6, 4, tWallVertices, cubeIndices,
-        4, 4, tWallVertices, tubeIndices,
-        DRP_Neutral, 
-        false, 0, 0, true, 
-        &woodPanel_tim, 
-        //0, 0, 128, 128, 
-        0, 0, 64, 128, 
-        true,
-        0, 0, 64, 128
-    );
-
-    TexturedPolyObject* tDoor = CreateTexturedPolyObjectFT4(
-        -512 + WALLHALF * 2, 0, 96, 
-        0, 0, 0,
-        6, 4, tDoorVertices, cubeIndices,
-        DRP_Neutral, 
-        false, 0, 0, true, 
-        &woodDoor_tim, 
-        63, 0, 64, 128, 
-        false,
-        63, 0, 64, 128
-    );
-
-    TexturedPolyObject* tWallRight = CreateTexturedPolyObjectFT4(
-        -512 + WALLHALF * 2 + DOORHALF * 2, 0, 96, 
-        0, 0, 0,
-        //6, 4, tWallVertices, cubeIndices,
-        4, 4, tWallVertices, tubeIndices,
-        DRP_Neutral, 
-        false, 0, 0, true, 
-        &woodPanel_tim, 
-        //0, 0, 128, 128, 
-        0, 0, 64, 128, 
-        true,
-        0, 0, 64, 128
-    );
-
-    TexturedPolyObject* longFloor = CreateTexturedPolyObjectFT4(
-        -512, 0, -32, 
-        0, 0, 0,
-        1, 4, longFloorVertices, reverseWindingIndices,
-        DRP_Low, 
-        false, 0, 0, true, 
-        &cobble_tim, 
-        //0, 127, 255, 128,
-        0, 127, 128, 128,
-        true,
-        0, 127, 128, 128
-    );
-
-    long startX = 64;
-
-    TiledTexturedPolyObject* tiledWall = CreateTiledTexturedPolyObjectFT4(
-        startX, 0, 96, 
-        0, 0, 0,
-        windingIndices,
-        128, 128, 0,
-        3, 1, 1,
-        DRP_Neutral,
-        &grassydirt_tim,
-        64, 192, 63, 63
-    );
-
-    TiledTexturedPolyObject* tiledWallSide2 = CreateTiledTexturedPolyObjectFT4(
-        startX + 384, 0, -160, 
-        0, 0, 0,
-        windingIndices,
-        64, 64, 0,
-        2, 1, 1,
-        DRP_Neutral,
-        &grassydirt_tim,
-        64, 192, 63, 63
-    );
-
-    TiledTexturedPolyObject* tiledWallSide = CreateTiledTexturedPolyObjectFT4(
-        startX + 384, 0, 96, 
-        0, 2048, 0,
-        windingIndices,
-        0, 64, 64,
-        1, 1, 4, 
-        DRP_Neutral,
-        &grassydirt_tim,
-        64, 192, 63, 63
-    );
-
-    TiledTexturedPolyObject* slateFloor = CreateTiledTexturedPolyObjectFT4(
-        startX, 0, -160, 
-        0, 0, 0,
-        windingIndices,
-        //128, 0, 128,
-        64, 0, 64,
-        //3, 1, 2, 
-        6, 1, 4,
-        DRP_Low,
-        //&dlv_slate_tim,
-        //0, 127, 128, 128
-        &grass_tim,
-        0, 192, 63, 63
-    );
-
-    TiledTexturedPolyObject* slateFloor1 = CreateTiledTexturedPolyObjectFT4(
-        startX, -128, 96, 
-        0, 0, 0,
-        windingIndices,
-        //128, 0, 128,
-        64, 0, 64,
-        //3, 1, 1, 
-        6, 1, 2,
-        DRP_Low,
-        //&dlv_slate_tim,
-        //0, 128, 127, 127
-        &grass_tim,
-        0, 192, 63, 63
-    );
-
-    TiledTexturedPolyObject* grassyHillFloor = CreateTiledTexturedPolyObjectFT4(
-        startX + 384, -64, -160, 
-        0, 0, 0,
-        windingIndices,
-        64, 0, 64,
-        2, 1, 4,
-        DRP_Low,
-        &grass_tim,
-        0, 192, 63, 63
-    );
-
-    TestTileMultiPoly* testPoly = CreateTestMultiPoly(
-        -640, 0, 96,
-        0, 0, 0,
-        6, 2, false,
-        1, 0, 0,
-        64, 128, 0,
-        &woodPanel_tim, 
-        0, 0, 64, 128
-    );
-
-    TestTileMultiPoly* testPolyFloor = CreateTestMultiPoly(
-        -640, 0, -32,
-        0, 0, 0,
-        3, 2, false,
-        1, 0, 0,
-        128, 0, 128,
-        &cobble_tim, 
-        0, 127, 128, 128
-    );
-    
-
-    activePolygons[0] = &player->poly;
-    activePolygons[1] = cube;
-    activePolygons[2] = colPlatform;
-
-    activeTexPolygons[0] = floor;
-    activeTexPolygons[1] = tWallLeft;
-    activeTexPolygons[2] = tWallRight;
-    activeTexPolygons[3] = tDoor;
-    activeTexPolygons[4] = longFloor;
-
-    activeTiledTexPolygons[0] = tiledWall;
-    activeTiledTexPolygons[1] = tiledWallSide2;
-    activeTiledTexPolygons[2] = tiledWallSide;
-    activeTiledTexPolygons[3] = slateFloor;
-    activeTiledTexPolygons[4] = slateFloor1;
-    activeTiledTexPolygons[5] = grassyHillFloor;
-
-
-    StaticCollisionPolyBox* testPolyBox = CreateCollisionPolyBox(
-        startX + 96, 0, -88,
-        0, 0, 0,
-        tinyHouseVertices,
-        SetupPolyData(&woodDoor_tim, 63, 0, 64, 128),
-        SetupPolyData(&woodPanel_tim, 0, 0, 64, 128),
-        SetupPolyData(&woodPanel_tim, 0, 0, 64, 128),
-        SetupPolyData(&woodPanel_tim, 0, 0, 64, 128),
-        SetupPolyData(&woodPanel_tim, 0, 0, 64, 128),
-        SetupPolyData(&woodPanel_tim, 0, 0, 64, 128)
-    );
-
-    StaticCollisionPolyBox* testPolyBox2 = CreateCollisionPolyBox(
-        startX, 0, -88,
-        0, 0, 0,
-        tinyBoxVertices,
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128),
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128),
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128),
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128),
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128),
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128)
-    );
-
-    StaticCollisionPolyBox* testPolyBox3 = CreateCollisionPolyBox(
-        startX + 32, 0, -88,
-        0, 0, 0,
-        boxVertices,
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128),
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128),
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128),
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128),
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128),
-        SetupPolyData(&cobble_tim, 0, 127, 128, 128)
-    );
-
-    StaticCollisionPolyBox* topPlatform = CreateCollisionPolyBox(
-        startX + 240, -112, -64,
-        0, 0, 0,
-        platformVertices,
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_metalpanel_tim, 0, 0, 128, 128),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64)
-    );
-
-    StaticCollisionPolyBox* middlePlatform = CreateCollisionPolyBox(
-        startX + 240, -72, -128,
-        0, 0, 0,
-        platformVertices,
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_metalpanel_tim, 0, 0, 128, 128),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64)
-    );
-
-    StaticCollisionPolyBox* bottomPlatform = CreateCollisionPolyBox(
-        startX + 240, -32, -192,
-        0, 0, 0,
-        platformVertices,
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_metalpanel_tim, 0, 0, 128, 128),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64)
-    );
-
-    StaticCollisionPolyBox* testPolyBox7 = CreateCollisionPolyBox(
-        startX + 240, -112, 256,
-        0, 0, 0,
-        platformVertices,
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64),
-        SetupPolyData(&dlv_metalpanel_tim, 0, 0, 128, 128),
-        SetupPolyData(&dlv_slate_tim, 0, 128, 64, 64)
-    );
-
-    CollisionBox* wallTestCollision = CreateCollisionBox(
-        startX, 0, 96,
-        384, 128, 128
-    );
-
-    CollisionBox* wallTestCollision1 = CreateCollisionBox(
-        startX + 384, 0, -160,
-        128, 64, 256
-    );
-
-    CollisionBox* nostalgia = CreateCollisionBox(
-        -32, -12, 224,
-        64, 24, 64
-    );
-    */
-
 
     // Wait for VBLANK to allow controller to initialise (otherwise it starts off with pad->buttons being FFFF for the first frame)
     VSync(0);
@@ -591,23 +284,6 @@ int main(void) {
                 if (pad0.buttons & PADRdown)   cube.obj.position.vy += 2;
                 if (pad0.buttons & PADRleft)   cube.obj.position.vx -= 2;
                 if (pad0.buttons & PADRright)  cube.obj.position.vx += 2;
-            }
-            */
-
-            /*
-            if (pad0.buttons & PADselect) {
-                resetCube(&cube->obj.rotation, &cube->obj.position);
-            }
-
-            if (pad0.buttons & PADstart) {
-                if (TPressed == 0) {
-                    AutoRotate = (AutoRotate + 1) & 1;
-                }
-
-                TPressed = 1;
-            } 
-            else {
-                TPressed = 0;
             }
             */
 
@@ -642,15 +318,11 @@ int main(void) {
             }
 
             if (pad0.buttons & PADL1) {
-                //tiledWall->polyObj.obj.rotation.vy -= 32;
                 player->poly.obj.rotation.vy -= 24;
-                //cameraRotation.vy += 16;
             }
 
             if (pad0.buttons & PADR1) {
-                //tiledWall->polyObj.obj.rotation.vy += 32;
                 player->poly.obj.rotation.vy += 24;
-                //cameraRotation.vy -= 16;
             }
 
             // Clean this up later, preferably by writing a separate file for input handling
@@ -702,12 +374,10 @@ int main(void) {
             }
         }
 
-        //cameraFixedRot.vx = player->cameraPtr->rotation.vx >> 12;
-        //cameraFixedRot.vx = 256;
         cameraFixedRot.vy = player->cameraPtr->rotation.vy >> 12;
         cameraFixedRot.vz = player->cameraPtr->rotation.vz >> 12;
+        
         //FntPrint("Cam: %04d, %04d, %04d\n\n", cameraFixedRot.vx, cameraFixedRot.vy, cameraFixedRot.vz);
-
         //FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
         
 
@@ -733,31 +403,15 @@ int main(void) {
             player->poly.obj.velocity.vy = 0;
 
             if (pad0.buttons & PADRdown) {
-                player->poly.obj.velocity.vy -= 8 * ONE;
+                player->poly.obj.velocity.vy -= 7 * ONE;
             }
         }
         else {
             player->poly.obj.velocity.vy += ONE / 2;
         }
-        
-        /*
-        if (AutoRotate) {
-            cube->obj.rotation.vy += 16;
-            cube->obj.rotation.vz += 16;
-        }
-        */
 
 
         UpdatePolyObject(&player->poly);
-
-        /*
-        for (size_t i = 0; i < ACTIVEPOLYGONCOUNT; i++) {
-            UpdatePolyObject(activePolygons[i]);
-        }
-        for (size_t i = 0; i < ACTIVETEXPOLYGONCOUNT; i++) {
-            UpdatePolyObject(&activeTexPolygons[i]->polyObj);
-        }
-        */
 
         for (size_t i = 0; i < CurrentLevelData->TiledPolys->count; i++) {
             TiledTexturedPolyObject* ttpobj = CurrentLevelData->TiledPolys->array[i];
@@ -767,35 +421,16 @@ int main(void) {
         UpdatePlayerCamera(&cameraFixedRot);
 
         // Add polys to OT
-
-        CameraTransformMatrix(player->cameraPtr, &player->poly.obj.transform);
-        AddPolyF(&player->poly);
-
-        /*
-        for (size_t i = 0; i < ACTIVEPOLYGONCOUNT; i++) {
-            CameraTransformMatrix(player->cameraPtr, &activePolygons[i]->obj.transform);
-            AddPolyF(activePolygons[i]);
-        }
-        
-        for (size_t i = 0; i < ACTIVETEXPOLYGONCOUNT; i++) {
-            CameraTransformMatrix(player->cameraPtr, &activeTexPolygons[i]->polyObj.obj.transform);
-            AddPolyFT(activeTexPolygons[i]);
-        }
-        */
+        CameraTransformMatrix(player->cameraPtr, &identity);
 
         for (size_t i = 0; i < CurrentLevelData->TiledPolys->count; i++) {
-            //CameraTransformMatrix(player->cameraPtr, &activeTiledTexPolygons[i]->polyObj.obj.transform);
-            //AddTiledPolyFT(activeTiledTexPolygons[i]);
             TiledTexturedPolyObject* ttpobj = CurrentLevelData->TiledPolys->array[i];
-            CameraTransformMatrix(player->cameraPtr, &ttpobj->polyObj.obj.transform);
+            //CameraTransformMatrix(player->cameraPtr, &ttpobj->polyObj.obj.transform);
             AddTiledPolyFT(ttpobj);
         }
 
-        //CameraTransformMatrix(player->cameraPtr, &testPoly->obj.transform);
-        //AddMultiPoly(testPoly, cdb->ot);
-
-        //CameraTransformMatrix(player->cameraPtr, &testPolyFloor->obj.transform);
-        //AddMultiPoly(testPolyFloor, cdb->ot);
+        CameraTransformMatrix(player->cameraPtr, &player->poly.obj.transform);
+        AddPolyF(&player->poly);
 
         for (size_t i = 0; i < CurrentLevelData->PolyBoxes->count; i++) {
             StaticCollisionPolyBox* scpolybox = CurrentLevelData->PolyBoxes->array[i];
@@ -809,8 +444,6 @@ int main(void) {
         //FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
 
         //FntPrint("%x\n", heapStart);
-
-        //FntPrint("Coins\nCollected: %d\nRemaining: %d\n", collectedCoins, GetLinkedListLength(collectibleList));
         
         DrawFrame();
     }
