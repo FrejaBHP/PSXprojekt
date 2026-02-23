@@ -148,7 +148,7 @@ void CreatePlayer(CVECTOR* col) {
 
     CameraObject* camera = calloc(1, sizeof(CameraObject));
     PolyData* polyData = calloc(6, sizeof(PolyData));
-    VECTOR pos = { 0, 0, 0 };
+    VECTOR pos = { 128, 0, 32 };
 
     if (player != NULL) {
         setVector(&player->poly.obj.position, pos.vx * ONE, pos.vy * ONE, pos.vz * ONE);
@@ -318,6 +318,7 @@ StaticWorldPolyBox* CreateStaticWorldPolyBox(
     GenericPtrList* pbList, GenericPtrList* colList,
     short posX, short posY, short posZ,
     short lenX, short lenY, short lenZ,
+    short padX, short padY, short padZ,
     enum DrawPriority drprio,
     size_t polyMask,
     PolyData* pd) {
@@ -347,9 +348,10 @@ StaticWorldPolyBox* CreateStaticWorldPolyBox(
 
     swpb->polyMask = polyMask;
     swpb->polyDataPtr = polyData;
+    swpb->drPrio = drprio;
 
-    setVector(&swpb->colBox.gridPos, posX, posY, posZ);
-    setVector(&swpb->colBox.dimensions, lenX, lenY, lenZ);
+    setVector(&swpb->colBox.gridPos, posX, posY + padY, posZ);
+    setVector(&swpb->colBox.dimensions, lenX + padX, lenY + padY, lenZ + padZ);
 
     AddItemToGenericPtrList(&pbList, swpb);
     AddItemToGenericPtrList(&colList, &swpb->colBox);

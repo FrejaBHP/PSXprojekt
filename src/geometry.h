@@ -52,6 +52,7 @@ StaticWorldPolyBox* CreateStaticWorldPolyBox(
     GenericPtrList* pbList, GenericPtrList* colList,
     short posX, short posY, short posZ,
     short lenX, short lenY, short lenZ,
+    short padX, short padY, short padZ,
     enum DrawPriority drprio,
     size_t polyMask,
     PolyData* pd);

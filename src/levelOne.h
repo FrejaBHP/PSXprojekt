@@ -7,6 +7,5 @@
 
 void InitialiseLevelOne();
 void SetActiveLevelOneOverworld();
-void CreateStartSection();
 
 #endif

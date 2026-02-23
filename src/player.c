@@ -4,7 +4,7 @@
 
 
 PlayerObject* player = NULL;
-bool isPlayerOnFloor = true;
+bool isPlayerOnFloor = false;
 bool isPlayerOnCollision = false;
 int collectedCoins = 0;
 

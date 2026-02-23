@@ -39,12 +39,10 @@ typedef struct Vector2UB {
 
 // Holds the pad data stream from the engine (dataBuffer), and divides it into the other, more readable members
 typedef struct GamePad {
-    u_char dataBuffer[34];
-    u_char status;
-    u_char type;
+    u_char dataBuffer[34]; u_char status; u_char type;
     ushort buttons;
-    Vector2UB leftstick;
-    Vector2UB rightstick;
+    Vector2UB leftstick; Vector2UB rightstick;
+    short padding;
 } GamePad;
 
 
@@ -388,12 +386,14 @@ int main(void) {
         if (isPlayerOnCollision) {
             isPlayerOnFloor = true;
         }
+        /*
         else if (player->poly.obj.position.vy == 0) {
             isPlayerOnFloor = true;
         }
-        else if ((player->poly.obj.position.vy + player->poly.obj.velocity.vy) > 0) {
-            player->poly.obj.position.vy = 0;
-            isPlayerOnFloor = true;
+        */
+        else if ((player->poly.obj.position.vy + player->poly.obj.velocity.vy) > 128 * ONE) {
+            player->poly.obj.position.vy = -128 * ONE;
+            //isPlayerOnFloor = true;
         }
         else {
             isPlayerOnFloor = false;
@@ -408,6 +408,10 @@ int main(void) {
         }
         else {
             player->poly.obj.velocity.vy += ONE / 2;
+
+            if (player->poly.obj.velocity.vy > 12 * ONE) {
+                player->poly.obj.velocity.vy = 12 * ONE;
+            }
         }
 
 
