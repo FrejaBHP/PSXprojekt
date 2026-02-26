@@ -31,6 +31,7 @@ typedef struct CollisionOverlaps {
     bool x;
     bool y;
     bool z;
+    u_char pad;
 } CollisionOverlaps;
 
 typedef struct CollisionBox {
@@ -78,7 +79,6 @@ typedef struct GameObject {
     MATRIX transform;
     VECTOR velocity; // Velocity, expressed in fixed-point integers (* ONE)
     long maxSpeed;
-    bool isStatic;
 } GameObject;
 
 // Extends GameObject and can also hold all the data needed to draw a polygon
@@ -86,6 +86,7 @@ typedef struct PolyObject {
     GameObject obj;
 
     u_char polySides;
+    bool collides;
     ushort polyLength;
     PolyData* polyDataPtr;
     SVECTOR* verticesPtr;
@@ -96,8 +97,6 @@ typedef struct PolyObject {
     int boxHeight;
     int boxWidth;
 
-    bool collides;
-
     //void (*add)(struct PolyObject* self, u_long* ot);
 } PolyObject;
 
@@ -105,7 +104,6 @@ typedef struct TexturedPolyObject {
     PolyObject polyObj;
     TIM_IMAGE* tim;
     RECT trect;
-    bool repeating;
 } TexturedPolyObject;
 
 typedef struct TestTileMultiPoly {

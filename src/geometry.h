@@ -13,12 +13,12 @@
 
 extern PolyData coinPolyData;
 
-extern SVECTOR playerBoxVertices[];
-extern SVECTOR collectibleVertices[];
-
-extern long cubeIndices[];
+//extern long cubeIndices[];
 extern long windingIndices[];
 extern long reverseWindingIndices[];
+
+extern long processedPolySides;
+extern long nonclippedPolySides;
 
 void OrderThing(long* otz, int dp);
 
@@ -72,7 +72,7 @@ TestTileMultiPoly* CreateTestMultiPoly(
 void AddPolyF(PolyObject* pobj);
 void AddPolyFT(TexturedPolyObject* tpobj);
 
-void AddStaticWorldGeometry(StaticWorldGeometry* swg);
+void AddStaticWorldGeometry(const StaticWorldGeometry* swg);
 void AddStaticWorldPolyBox(StaticWorldPolyBox* swpb);
 
 void AddCollectible(CollectibleObject* cobj);

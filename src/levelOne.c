@@ -4,14 +4,19 @@ LevelData overworldData;
 
 const short startX = 64;
 const short startY = 0;
+const short startZ = -160;
 const short bridgeStartZ = 96;
 
 SVECTOR bridgeStepEndPos;
+SVECTOR waterLandEndPos;
+SVECTOR ascentEndPos;
 
 void CreateStartSection();
 void CreateGrassyHill();
 void CreateBridgeArea();
 void CreateWaterArea();
+void CreateAscent();
+void CreatePlateau();
 
 void InitialiseLevelOne() {
     overworldData.TiledPolys = CreateGenericPtrListWithSize(128);
@@ -23,6 +28,8 @@ void InitialiseLevelOne() {
     CreateGrassyHill();
     CreateBridgeArea();
     CreateWaterArea();
+    CreateAscent();
+    CreatePlateau();
 }
 
 void SetActiveLevelOneOverworld() {
@@ -33,7 +40,7 @@ void CreateStartSection() {
     // floor
     StaticWorldGeometry* startFloor = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
-        startX, startY, -160, 
+        startX, startY, startZ, 
         windingIndices,
         64, 0, 64,
         6, 1, 4,
@@ -43,7 +50,7 @@ void CreateStartSection() {
 
     CollisionBox* startCollision = CreateCollisionBox(
         overworldData.CollisionBoxes,
-        startX, startY + 64, -160,
+        startX, startY + 64, startZ,
         6 * 64, 64, 4 * 64
     );
 }
@@ -55,7 +62,7 @@ void CreateGrassyHill() {
 
     StaticWorldGeometry* grassyHillSide = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
-        startX + 384, startY, -96, 
+        startX + 384, startY, startZ + 64, 
         reverseWindingIndices,
         0, 64, 64,
         1, 1, grassyHillZ, 
@@ -65,7 +72,7 @@ void CreateGrassyHill() {
 
     StaticWorldGeometry* grassyHillFloorLeft = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
-        startX + 384, startY - 64, -96, 
+        startX + 384, startY - 64, startZ + 64, 
         windingIndices,
         64, 0, 64,
         grassyHillX / 2, 1, grassyHillZ,
@@ -75,7 +82,7 @@ void CreateGrassyHill() {
 
     StaticWorldGeometry* grassyHillFloorRight = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
-        startX + 512, startY - 64, -160, 
+        startX + 512, startY - 64, startZ, 
         windingIndices,
         64, 0, 64,
         grassyHillX / 2, 1, grassyHillZ,
@@ -85,13 +92,13 @@ void CreateGrassyHill() {
 
     CollisionBox* grassyHillLeftCollision = CreateCollisionBox(
         overworldData.CollisionBoxes,
-        startX + 384, startY, -96,
+        startX + 384, startY, startZ + 64,
         grassyHillX * 32, 64, grassyHillZ * 64
     );
 
     CollisionBox* grassyHillRightCollision = CreateCollisionBox(
         overworldData.CollisionBoxes,
-        startX + 512, startY, -160,
+        startX + 512, startY, startZ,
         grassyHillX * 32, 64, 32 + grassyHillZ * 64
     );
 
@@ -99,7 +106,7 @@ void CreateGrassyHill() {
     // Steps
     StaticWorldPolyBox* grassyHillStep1 = CreateStaticWorldPolyBox(
         overworldData.PolyBoxes, overworldData.CollisionBoxes,
-        startX + 384, startY, -160, 
+        startX + 384, startY, startZ, 
         64, 16, 64,
         0, 16, 0,
         DRP_Neutral,
@@ -112,7 +119,7 @@ void CreateGrassyHill() {
 
     StaticWorldPolyBox* grassyHillStep2 = CreateStaticWorldPolyBox(
         overworldData.PolyBoxes, overworldData.CollisionBoxes,
-        startX + 448, startY - 16, -160, 
+        startX + 448, startY - 16, startZ, 
         64, 16, 64,
         0, 16, 0,
         DRP_Neutral,
@@ -125,7 +132,7 @@ void CreateGrassyHill() {
 
     StaticWorldGeometry* grassyHillStepFront3 = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
-        startX + 384 + 128, startY - 32, -160, 
+        startX + 384 + 128, startY - 32, startZ, 
         reverseWindingIndices,
         0, 32, 64,
         1, 1, 1,
@@ -135,7 +142,7 @@ void CreateGrassyHill() {
 
     StaticWorldGeometry* grassyHillStepWall1 = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
-        startX + 384, startY - 16, -96, 
+        startX + 384, startY - 16, startZ + 64, 
         windingIndices,
         64, 48, 0,
         1, 1, 1,
@@ -145,7 +152,7 @@ void CreateGrassyHill() {
 
     StaticWorldGeometry* grassyHillStepWall2 = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
-        startX + 384 + 64, startY - 32, -96, 
+        startX + 384 + 64, startY - 32, startZ + 64, 
         windingIndices,
         64, 32, 0,
         1, 1, 1,
@@ -157,7 +164,7 @@ void CreateGrassyHill() {
     // On top of the starting grassy hill
     StaticWorldGeometry* grassyHillStepToBridgeTop = CreateStaticWorldGeometryUVRect(
         overworldData.TiledPolys,
-        startX + 512, startY - 96, 32, 
+        startX + 512, startY - 96, startZ + 192, 
         windingIndices,
         64, 0, 64,
         2, 1, 1,
@@ -167,7 +174,7 @@ void CreateGrassyHill() {
 
     StaticWorldGeometry* grassyHillStepToBridgeFront = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
-        startX + 512, startY - 64, 32, 
+        startX + 512, startY - 64, startZ + 192, 
         windingIndices,
         64, 32, 0,
         2, 1, 1,
@@ -177,7 +184,7 @@ void CreateGrassyHill() {
 
     StaticWorldGeometry* grassyHillStepToBridgeSide = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
-        startX + 512, startY - 64, 32, 
+        startX + 512, startY - 64, startZ + 192, 
         reverseWindingIndices,
         0, 32, 64,
         1, 1, 1,
@@ -187,13 +194,13 @@ void CreateGrassyHill() {
 
     CollisionBox* grassyHillStepToBridgeCollision = CreateCollisionBox(
         overworldData.CollisionBoxes,
-        startX + 512, startY - 64, 32,
+        startX + 512, startY - 64, startZ + 192,
         128, 32, 64
     );
 
     StaticWorldGeometry* grassyHillBridgeHalfwall1 = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
-        startX + 384, startY - 64, 96, 
+        startX + 384, startY - 64, startZ + 256, 
         windingIndices,
         64, 64, 0,
         grassyHillX / 2, 1, 1,
@@ -203,7 +210,7 @@ void CreateGrassyHill() {
 
     StaticWorldGeometry* grassyHillBridgeHalfwall2 = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
-        startX + 512, startY - 96, 96, 
+        startX + 512, startY - 96, startZ + 256, 
         windingIndices,
         64, 32, 0,
         grassyHillX / 2, 1, 1,
@@ -214,7 +221,7 @@ void CreateGrassyHill() {
 
 void CreateBridgeArea() {
     const short bridgeHalfX = 10;
-    const short bridgeHalfZ = 4;
+    const short bridgeHalfZ = 3;
     const short bridgeStreamZ = 2;
 
     const short bridgeHalfStreamZ = bridgeHalfZ + bridgeStreamZ;
@@ -331,11 +338,13 @@ void CreateBridgeArea() {
     
     // Bridge "staircase", descending order
     short i = 0;
+    short stairOffset = 96;
+    short stairWidth = 96;
 
     StaticWorldPolyBox* bridgeStairStepTop = CreateStaticWorldPolyBox(
         overworldData.PolyBoxes, overworldData.CollisionBoxes,
-        startX - 64, startY - 112, bridgeStartZ + ((bridgeHalfStreamZ + i++) * 64), 
-        64, 16, 64,
+        startX - stairWidth, startY - (stairOffset - (16 * i)), bridgeStartZ + ((bridgeHalfStreamZ + i++) * 64), 
+        stairWidth, 16, 64,
         0, 16, 0,
         DRP_Neutral,
         0b010100,
@@ -347,8 +356,8 @@ void CreateBridgeArea() {
 
     StaticWorldPolyBox* bridgeStairStep1 = CreateStaticWorldPolyBox(
         overworldData.PolyBoxes, overworldData.CollisionBoxes,
-        startX - 64, startY - 96, bridgeStartZ + ((bridgeHalfStreamZ + i++) * 64), 
-        64, 16, 64,
+        startX - stairWidth, startY - (stairOffset - (16 * i)), bridgeStartZ + ((bridgeHalfStreamZ + i++) * 64), 
+        stairWidth, 16, 64,
         0, 16, 0,
         DRP_Neutral,
         0b010100,
@@ -360,8 +369,8 @@ void CreateBridgeArea() {
 
     StaticWorldPolyBox* bridgeStairStep2 = CreateStaticWorldPolyBox(
         overworldData.PolyBoxes, overworldData.CollisionBoxes,
-        startX - 64, startY - 80, bridgeStartZ + ((bridgeHalfStreamZ + i++) * 64), 
-        64, 16, 64,
+        startX - stairWidth, startY - (stairOffset - (16 * i)), bridgeStartZ + ((bridgeHalfStreamZ + i++) * 64), 
+        stairWidth, 16, 64,
         0, 16, 0,
         DRP_Neutral,
         0b010100,
@@ -373,8 +382,8 @@ void CreateBridgeArea() {
 
     StaticWorldPolyBox* bridgeStairStep3 = CreateStaticWorldPolyBox(
         overworldData.PolyBoxes, overworldData.CollisionBoxes,
-        startX - 64, startY - 64, bridgeStartZ + ((bridgeHalfStreamZ + i++) * 64), 
-        64, 16, 64,
+        startX - stairWidth + 8, startY - (stairOffset - (16 * i)), bridgeStartZ + ((bridgeHalfStreamZ + i++) * 64), 
+        stairWidth, 16, 64,
         0, 16, 0,
         DRP_Neutral,
         0b010100,
@@ -386,21 +395,8 @@ void CreateBridgeArea() {
 
     StaticWorldPolyBox* bridgeStairStep4 = CreateStaticWorldPolyBox(
         overworldData.PolyBoxes, overworldData.CollisionBoxes,
-        startX - 64, startY - 48, bridgeStartZ + ((bridgeHalfStreamZ + i++) * 64), 
-        64, 16, 64,
-        0, 16, 0,
-        DRP_Neutral,
-        0b010100,
-        (PolyData[]) {
-            SetupPolyDataUVRect(&grassydirt_tim, &grassydirt_UVR),
-            SetupPolyDataUVRect(&grass_tim, &grass_UVR)
-        }
-    );
-
-    StaticWorldPolyBox* bridgeStairStep5 = CreateStaticWorldPolyBox(
-        overworldData.PolyBoxes, overworldData.CollisionBoxes,
-        startX - 64, startY - 32, bridgeStartZ + ((bridgeHalfStreamZ + i++) * 64), 
-        64, 16, 64,
+        startX - stairWidth + 24, startY - (stairOffset - (16 * i)), bridgeStartZ + ((bridgeHalfStreamZ + i++) * 64), 
+        stairWidth, 16, 64,
         0, 16, 0,
         DRP_Neutral,
         0b010100,
@@ -414,28 +410,28 @@ void CreateBridgeArea() {
 }
 
 void CreateWaterArea() {
-    const short wLandX = 3;
-    const short wLandZ = 3;
+    const short wLandX = 4;
+    const short wLandZ = 4;
 
     const short wLandSeg1OffsetX = wLandX * 64;
-    const short wLandSeg1X = 2;
-    const short wLandSeg1Z = 2;
+    const short wLandSeg1X = 3;
+    const short wLandSeg1Z = 3;
 
     const short wLandSeg2OffsetX = wLandSeg1OffsetX + (wLandSeg1X * 64);
-    const short wLandSeg2X = 1;
-    const short wLandSeg2Z = 3;
+    const short wLandSeg2X = 2;
+    const short wLandSeg2Z = 4;
 
     const short wLandSeg3OffsetX = wLandSeg2OffsetX + (wLandSeg2X * 64);
-    const short wLandSeg3X = 1;
-    const short wLandSeg3Z = 4;
+    const short wLandSeg3X = 2;
+    const short wLandSeg3Z = 5;
 
     const short wLandSeg4OffsetX = wLandSeg3OffsetX + (wLandSeg3X * 64);
     const short wLandSeg4X = 3;
-    const short wLandSeg4Z = 3;
+    const short wLandSeg4Z = 4;
 
     const short wLandSeg5OffsetX = wLandSeg4OffsetX + (wLandSeg4X * 64);
     const short wLandSeg5X = 1;
-    const short wLandSeg5Z = 2;
+    const short wLandSeg5Z = 3;
 
     const short combinedSegFront = wLandX + wLandSeg1X + wLandSeg2X + wLandSeg3X;
     const short combinedSegBack = wLandSeg3X + wLandSeg4X + wLandSeg5X;
@@ -463,7 +459,7 @@ void CreateWaterArea() {
 
     StaticWorldGeometry* waterLandStartBack = CreateStaticWorldGeometryUVRect(
         overworldData.TiledPolys,
-        bridgeStepEndPos.vx, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + 192, 
+        bridgeStepEndPos.vx, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + (wLandZ * 64), 
         reverseWindingIndices,
         64, 64, 0,
         wLandX, 1, 1,
@@ -483,7 +479,7 @@ void CreateWaterArea() {
 
     StaticWorldGeometry* waterLandStartRight = CreateStaticWorldGeometryUVRect(
         overworldData.TiledPolys,
-        bridgeStepEndPos.vx + 192, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + 128, 
+        bridgeStepEndPos.vx + (wLandX * 64), bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + ((wLandZ - 1) * 64), 
         windingIndices,
         0, 64, 64,
         1, 1, 1,
@@ -494,7 +490,7 @@ void CreateWaterArea() {
     CollisionBox* waterLandStartCollision = CreateCollisionBox(
         overworldData.CollisionBoxes,
         bridgeStepEndPos.vx, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz, 
-        192, 64, 192
+        wLandX * 64, 64, wLandZ * 64
     );
 
     // Segment 1
@@ -510,7 +506,7 @@ void CreateWaterArea() {
 
     StaticWorldGeometry* waterLandSeg1Back = CreateStaticWorldGeometryUVRect(
         overworldData.TiledPolys,
-        bridgeStepEndPos.vx + wLandSeg1OffsetX, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + 128, 
+        bridgeStepEndPos.vx + wLandSeg1OffsetX, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + (wLandSeg1Z * 64), 
         reverseWindingIndices,
         64, 64, 0,
         wLandSeg1X, 1, 1,
@@ -537,7 +533,7 @@ void CreateWaterArea() {
 
     StaticWorldGeometry* waterLandSeg2Left = CreateStaticWorldGeometryUVRect(
         overworldData.TiledPolys,
-        bridgeStepEndPos.vx + wLandSeg2OffsetX, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + 128, 
+        bridgeStepEndPos.vx + wLandSeg2OffsetX, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + ((wLandSeg2Z - 1) * 64), 
         reverseWindingIndices,
         0, 64, 64,
         1, 1, 1,
@@ -547,7 +543,7 @@ void CreateWaterArea() {
 
     StaticWorldGeometry* waterLandSeg2Back = CreateStaticWorldGeometryUVRect(
         overworldData.TiledPolys,
-        bridgeStepEndPos.vx + wLandSeg2OffsetX, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + 192, 
+        bridgeStepEndPos.vx + wLandSeg2OffsetX, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + (wLandSeg2Z * 64), 
         reverseWindingIndices,
         64, 64, 0,
         wLandSeg2X, 1, 1,
@@ -584,7 +580,7 @@ void CreateWaterArea() {
 
     StaticWorldGeometry* waterLandSeg3Left = CreateStaticWorldGeometryUVRect(
         overworldData.TiledPolys,
-        bridgeStepEndPos.vx + wLandSeg3OffsetX, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + 192, 
+        bridgeStepEndPos.vx + wLandSeg3OffsetX, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + ((wLandSeg3Z - 1) * 64), 
         reverseWindingIndices,
         0, 64, 64,
         1, 1, 1,
@@ -594,7 +590,7 @@ void CreateWaterArea() {
 
     StaticWorldGeometry* waterLandSegCombinedBack = CreateStaticWorldGeometryUVRect(
         overworldData.TiledPolys,
-        bridgeStepEndPos.vx + wLandSeg3OffsetX, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + 256, 
+        bridgeStepEndPos.vx + wLandSeg3OffsetX, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + (wLandSeg3Z * 64), 
         reverseWindingIndices,
         64, 64, 0,
         combinedSegBack, 1, 1,
@@ -670,5 +666,442 @@ void CreateWaterArea() {
         overworldData.CollisionBoxes,
         bridgeStepEndPos.vx + wLandSeg5OffsetX, bridgeStepEndPos.vy + 64, bridgeStepEndPos.vz + 128, 
         wLandSeg5X * 64, 64, wLandSeg5Z * 64
+    );
+
+    setVector(&waterLandEndPos, bridgeStepEndPos.vx + wLandSeg5OffsetX, bridgeStepEndPos.vy, bridgeStepEndPos.vz + (wLandSeg3Z * 64));
+
+    // Temp wall
+    StaticWorldGeometry* waterLandCliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        waterLandEndPos.vx + 64, bridgeStepEndPos.vy - 128, bridgeStepEndPos.vz - 128, 
+        reverseWindingIndices,
+        0, 128, 128,
+        1, 2, 3,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
+    );
+}
+
+void CreateAscent() {
+    SVECTOR ascentPivot = waterLandEndPos;
+    short stepHeight = 32;
+    // ascentStartPos.vy - (64 * wholeSteps++)
+
+    // Step 1
+    const short step1X = 2;
+    const short step1Z = 1;
+
+    ascentPivot.vx += (64 - (step1X * 80));
+
+    StaticWorldGeometry* ascStep1Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - stepHeight, ascentPivot.vz, 
+        windingIndices,
+        80, 0, 96,
+        step1X, 1, step1Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    StaticWorldGeometry* ascStep1Front = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
+        windingIndices,
+        80, stepHeight, 0,
+        step1X, 1, 1,
+        DRP_Neutral,
+        &grassydirt_tim, &grassydirt_UVR
+    );
+
+    CollisionBox* ascStep1Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
+        step1X * 80, stepHeight, step1Z * 96
+    );
+
+
+    // Step 2
+    const short step2X = 4;
+    const short step2Z = 1;
+
+    ascentPivot.vy -= stepHeight;
+    ascentPivot.vz += step1Z * 96;
+
+    StaticWorldGeometry* ascStep2Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - stepHeight, ascentPivot.vz, 
+        windingIndices,
+        64, 0, 96,
+        step2X, 1, step2Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    StaticWorldGeometry* ascStep2Front = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
+        windingIndices,
+        80, stepHeight, 0,
+        step1X, 1, 1,
+        DRP_Neutral,
+        &grassydirt_tim, &grassydirt_UVR
+    );
+
+    CollisionBox* ascStep2Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
+        step2X * 64, stepHeight, step2Z * 96
+    );
+
+
+    // Step 3
+    const short step3X = 4;
+    const short step3Z = 2;
+
+    ascentPivot.vx += 64;
+    ascentPivot.vy -= stepHeight;
+    ascentPivot.vz += step2Z * 96;
+
+    StaticWorldGeometry* ascStep3Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - stepHeight, ascentPivot.vz, 
+        windingIndices,
+        64, 0, 64,
+        step3X, 1, step3Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    StaticWorldGeometry* ascStep3Front = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
+        windingIndices,
+        64, stepHeight, 0,
+        step3X - 1, 1, 1,
+        DRP_Neutral,
+        &grassydirt_tim, &grassydirt_UVR
+    );
+
+    CollisionBox* ascStep3Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
+        step3X * 64, stepHeight, step3Z * 64
+    );
+
+
+    // Step 4
+    const short step4X = 4;
+    const short step4Z = 4;
+
+    ascentPivot.vx += step3X * 64;
+    ascentPivot.vy -= stepHeight;
+
+    StaticWorldGeometry* ascStep4Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - stepHeight, ascentPivot.vz, 
+        windingIndices,
+        64, 0, 64,
+        step4X, 1, step4Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    StaticWorldGeometry* ascStep4Left = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
+        reverseWindingIndices,
+        0, stepHeight, 64,
+        1, 1, step4Z,
+        DRP_Neutral,
+        &grassydirt_tim, &grassydirt_UVR
+    );
+
+    CollisionBox* ascStep4Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
+        step4X * 64, stepHeight, step4Z * 64
+    );
+
+
+    // Step 5
+    const short step5X = 4;
+    const short step5Z = 4;
+
+    ascentPivot.vx += step4X * 64;
+    ascentPivot.vy -= stepHeight;
+    ascentPivot.vz -= 2 * 64;
+
+    StaticWorldGeometry* ascStep5Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - stepHeight, ascentPivot.vz, 
+        windingIndices,
+        64, 0, 64,
+        step5X, 1, step5Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    StaticWorldGeometry* ascStep5Left = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz + (2 * 64), 
+        reverseWindingIndices,
+        0, stepHeight, 64,
+        1, 1, step4Z - 1,
+        DRP_Neutral,
+        &grassydirt_tim, &grassydirt_UVR
+    );
+
+    CollisionBox* ascStep5Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
+        step5X * 64, stepHeight, step5Z * 64
+    );
+
+
+    // Step 6
+    const short step6X = 3;
+    const short step6Z = 4;
+
+    ascentPivot.vx += 96;
+    ascentPivot.vy -= stepHeight;
+    ascentPivot.vz -= step6Z * 64;
+
+    StaticWorldGeometry* ascStep6Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - stepHeight, ascentPivot.vz, 
+        windingIndices,
+        72, 0, 64,
+        step6X, 1, step6Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    StaticWorldGeometry* ascStep6Back = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz + (step6Z * 64), 
+        reverseWindingIndices,
+        80, stepHeight, 0,
+        2, 1, 1,
+        DRP_Neutral,
+        &grassydirt_tim, &grassydirt_UVR
+    );
+
+    CollisionBox* ascStep6Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
+        step6X * 72, stepHeight, step6Z * 64
+    );
+
+
+    // Step 7
+    const short step7X = 3;
+    const short step7Z = 3;
+
+    const short step7_1X = 2;
+    const short step7_1Z = 1;
+
+    ascentPivot.vy -= stepHeight;
+    ascentPivot.vz -= step7Z * 64;
+
+    StaticWorldGeometry* ascStep7Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - stepHeight, ascentPivot.vz, 
+        windingIndices,
+        64, 0, 64,
+        step7X, 1, step7Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    StaticWorldGeometry* ascStep7_1Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - stepHeight, ascentPivot.vz - (step7_1Z * 64), 
+        windingIndices,
+        72, 0, 64,
+        2, 1, 1,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    StaticWorldGeometry* ascStep7Back = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz + (step7Z * 64), 
+        reverseWindingIndices,
+        64, stepHeight, 0,
+        step7Z, 1, 1,
+        DRP_Neutral,
+        &grassydirt_tim, &grassydirt_UVR
+    );
+
+    CollisionBox* ascStep7Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz - (step7_1Z * 64), 
+        (step7X * 64), stepHeight, (step7Z * 64) + (step7_1Z * 64)
+    );
+
+
+    // Step 8
+    const short step8X = 1;
+    const short step8Z = 3;
+
+    ascentPivot.vx -= step8X * 64;
+    ascentPivot.vy -= stepHeight;
+    ascentPivot.vz -= step7_1Z * 64;
+
+    stepHeight = 16;
+
+    StaticWorldGeometry* ascStep8Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - stepHeight, ascentPivot.vz, 
+        windingIndices,
+        64, 0, 64,
+        step8X, 1, step8Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    StaticWorldGeometry* ascStep8Right = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx + (step8X * 64), ascentPivot.vy, ascentPivot.vz, 
+        windingIndices,
+        0, stepHeight, 64,
+        1, 1, step8Z,
+        DRP_Neutral,
+        &grassydirt_tim, &grassydirt_UVR
+    );
+
+    CollisionBox* ascStep8Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
+        step8X * 64, stepHeight, step8Z * 64
+    );
+
+    ascentEndPos = ascentPivot;
+}
+
+
+void CreatePlateau() {
+    SVECTOR plateauPivot = ascentEndPos;
+
+    // start section
+    const short plStart1X = 2;
+    const short plStart1Z = 4;
+
+    const short plStart2X = 2;
+    const short plStart2Z = 6;
+
+    const short plStart3X = 3;
+    const short plStart3Z = 6;
+
+    const short plStartCombX = plStart1X + plStart2X + plStart3X;
+
+    plateauPivot.vx -= plStart1X * 64;
+    plateauPivot.vy -= 32;
+
+    StaticWorldGeometry* plStart1Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        plateauPivot.vx, plateauPivot.vy, plateauPivot.vz, 
+        windingIndices,
+        64, 0, 64,
+        plStart1X, 1, plStart1Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    StaticWorldGeometry* plStartRight = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        plateauPivot.vx + (plStart1X * 64), plateauPivot.vy + 16, plateauPivot.vz, 
+        windingIndices,
+        0, 16, 64,
+        1, 1, plStart1Z - 1,
+        DRP_Neutral,
+        &grassydirt_tim, &grassydirt_UVR
+    );
+
+    plateauPivot.vx -= plStart2X * 64;
+
+    StaticWorldGeometry* plStart2Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        plateauPivot.vx, plateauPivot.vy, plateauPivot.vz, 
+        windingIndices,
+        64, 0, 64,
+        plStart2X, 1, plStart2Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    plateauPivot.vx -= plStart3X * 64;
+
+    StaticWorldGeometry* plStart3Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        plateauPivot.vx, plateauPivot.vy, plateauPivot.vz, 
+        windingIndices,
+        64, 0, 64,
+        plStart3X, 1, plStart3Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    CollisionBox* plStartFloorCollision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        plateauPivot.vx, plateauPivot.vy + 32, plateauPivot.vz, 
+        plStartCombX * 64, 32, plStart3Z * 64
+    );
+
+
+    // Waterfall
+    const short plWaterfall1X = 3;
+    const short plWaterfall1Z = 3;
+
+    StaticWorldGeometry* plWaterfallBack = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        plateauPivot.vx, plateauPivot.vy, plateauPivot.vz, 
+        reverseWindingIndices,
+        64, 32, 0,
+        plWaterfall1X, 1, 1,
+        DRP_Neutral,
+        &grassydirt_tim, &grassydirt_UVR
+    );
+
+    plateauPivot.vy -= 32;
+    plateauPivot.vz -= plWaterfall1Z * 64;
+
+    StaticWorldGeometry* plWaterfall1Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        plateauPivot.vx, plateauPivot.vy, plateauPivot.vz, 
+        windingIndices,
+        64, 0, 64,
+        plWaterfall1X, 1, plWaterfall1Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    CollisionBox* plWaterfall1Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        plateauPivot.vx, plateauPivot.vy + 64, plateauPivot.vz, 
+        plWaterfall1X * 64, 64, plWaterfall1Z * 64
+    );
+
+
+    const short plWaterfall2X = 7;
+    const short plWaterfall2Z = 4;
+
+    plateauPivot.vx -= (plWaterfall2X - plWaterfall1X) * 64;
+    plateauPivot.vz -= plWaterfall2Z * 64;
+
+    StaticWorldGeometry* plWaterfall2Floor = CreateStaticWorldGeometry(
+        overworldData.TiledPolys,
+        plateauPivot.vx, plateauPivot.vy, plateauPivot.vz, 
+        windingIndices,
+        64, 0, 64,
+        plWaterfall2X, 1, plWaterfall2Z,
+        DRP_Neutral,
+        &grass_tim, 0, 192, 63, 63
+    );
+
+    CollisionBox* plWaterfall2Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        plateauPivot.vx, plateauPivot.vy + 64, plateauPivot.vz, 
+        plWaterfall2X * 64, 64, plWaterfall2Z * 64
     );
 }

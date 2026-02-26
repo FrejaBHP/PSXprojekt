@@ -11,6 +11,7 @@ src/player.c \
 src/geometry.c \
 src/level.c \
 src/levelOne.c \
+src/input.c \
 textures/woodPanel.tim \
 textures/woodDoor.tim \
 textures/cobble.tim \

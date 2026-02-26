@@ -3,19 +3,19 @@
 
 PolyData coinPolyData = { 0 };
 
-SVECTOR playerBoxVertices[] = {
+static SVECTOR playerBoxVertices[] = {
     { -PLAYERWIDTHHALF, -PLAYERHEIGHT, -PLAYERWIDTHHALF, 0 }, {  PLAYERWIDTHHALF, -PLAYERHEIGHT, -PLAYERWIDTHHALF, 0 },
     {  PLAYERWIDTHHALF, 0, -PLAYERWIDTHHALF, 0 }, { -PLAYERWIDTHHALF, 0, -PLAYERWIDTHHALF, 0 },
     { -PLAYERWIDTHHALF, -PLAYERHEIGHT,  PLAYERWIDTHHALF, 0 }, {  PLAYERWIDTHHALF, -PLAYERHEIGHT,  PLAYERWIDTHHALF, 0 },
     {  PLAYERWIDTHHALF, 0,  PLAYERWIDTHHALF, 0 }, { -PLAYERWIDTHHALF, 0,  PLAYERWIDTHHALF, 0 },
 };
 
-SVECTOR collectibleVertices[] = {
+static SVECTOR collectibleVertices[] = {
     { -16, -16, 0, 0 }, { 16, -16, 0, 0 },
     { 16, 16, 0, 0 },   { -16, 16, 0, 0 }
 };
 
-long cubeIndices[] = {
+static long cubeIndices[] = {
     // From camera starting position:
     0, 1, 2, 3, // Front
     1, 5, 6, 2, // Left
@@ -32,6 +32,9 @@ long windingIndices[] = {
 long reverseWindingIndices[] = {
     1, 0, 3, 2
 };
+
+long processedPolySides = 0;
+long nonclippedPolySides = 0;
 
 
 // Lazy and likely fragile attempt at influencing sorting order
@@ -162,7 +165,7 @@ void CreatePlayer(CVECTOR* col) {
         player->poly.boxHeight = PLAYERHEIGHT;
         player->poly.boxWidth = PLAYERWIDTHHALF * 2;
         player->poly.obj.maxSpeed = 5 * ONE;
-        player->poly.obj.isStatic = false;
+        //player->poly.obj.isStatic = false;
         //player->poly.add = &AddPolyF;
 
         if (camera != NULL) {
@@ -197,7 +200,7 @@ PolyObject* CreatePolyObjectF4(long posX, long posY, long posZ, short rotX, shor
         pobj->collides = coll;
         pobj->boxHeight = collH;
         pobj->boxWidth = collW;
-        pobj->obj.isStatic = fixed;
+        //pobj->obj.isStatic = fixed;
         //platform->add = &AddPolyF;
 
         for (size_t i = 0; i < plen; i++) {
@@ -507,16 +510,16 @@ TestTileMultiPoly* CreateTestMultiPoly(
 
 void AddPolyF(PolyObject* pobj) {
     POLY_F4* poly;
-    long p, otz, flg;
-    int nclip;
+    long otz, nclip;
     size_t colIndex = 0;
 
     if (pobj->polySides == 4) {
         for (size_t i = 0; i < (pobj->polyLength * pobj->polySides); i += pobj->polySides, ++poly, ++colIndex) {
-            poly = (POLY_F4*)primPtr;
-
             gte_ldv3(&pobj->verticesPtr[pobj->indicesPtr[i + 0]], &pobj->verticesPtr[pobj->indicesPtr[i + 1]], &pobj->verticesPtr[pobj->indicesPtr[i + 3]]);
             gte_rtpt();
+            
+            poly = (POLY_F4*)primPtr;
+
             gte_nclip();
             gte_stopz(&nclip);
 
@@ -524,14 +527,17 @@ void AddPolyF(PolyObject* pobj) {
                 continue;
             }
 
-            setPolyF4(poly);
-            setRGB0(poly, pobj->polyDataPtr[colIndex].r, pobj->polyDataPtr[colIndex].g, pobj->polyDataPtr[colIndex].b);
-
             gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
             gte_ldv0(&pobj->verticesPtr[pobj->indicesPtr[i + 2]]);
             gte_rtps();
 
+            setPolyF4(poly);
+            setRGB0(poly, pobj->polyDataPtr[colIndex].r, pobj->polyDataPtr[colIndex].g, pobj->polyDataPtr[colIndex].b);
+
             gte_avsz4();
+
+            primPtr += sizeof(POLY_F4);
+
             gte_stotz(&otz);
             gte_stsxy(&poly->x3);
             
@@ -540,7 +546,7 @@ void AddPolyF(PolyObject* pobj) {
                 addPrim(cdb->ot[otz], poly);
             }
 
-            primPtr += sizeof(POLY_F4);
+            
         }
     }
     /*
@@ -569,8 +575,7 @@ void AddPolyF(PolyObject* pobj) {
 
 void AddPolyFT(TexturedPolyObject* tpobj) {
     POLY_FT4* poly;
-    long p, otz, flg;
-    int nclip;
+    long otz, nclip;
 
     if (tpobj->polyObj.polySides == 4) {
         for (size_t i = 0; i < (tpobj->polyObj.polyLength * tpobj->polyObj.polySides); i += tpobj->polyObj.polySides, ++poly) {
@@ -631,93 +636,132 @@ void AddPolyFT(TexturedPolyObject* tpobj) {
     */
 }
 
-// Tiles polys side by side
-void AddStaticWorldGeometry(StaticWorldGeometry* swg) {
+typedef struct WorkSWG {
     POLY_FT4* poly;
-    long p, otz, flg;
-    int nclip;
+    long otz;
+    long nclip;
+    PolyData polyData;
+    SVECTOR* vertices;
+    long indices[4];
+    size_t totalPolys;
+} WorkSWG;
 
-    for (size_t i = 0; i < swg->totalPolys * 4; i += 4, ++poly) {
-        poly = (POLY_FT4*)primPtr;
+// Tiles polys side by side
+void AddStaticWorldGeometry(const StaticWorldGeometry* swg) {
+    WorkSWG* work = (WorkSWG*)getScratchAddr(0);
 
-        gte_ldv3(&swg->verticesPtr[i + swg->indicesPtr[0]], &swg->verticesPtr[i + swg->indicesPtr[1]], &swg->verticesPtr[i + swg->indicesPtr[3]]);
+    work->polyData = *swg->polyDataPtr;
+    work->vertices = swg->verticesPtr;
+
+    work->indices[0] = swg->indicesPtr[0];
+    work->indices[1] = swg->indicesPtr[1];
+    work->indices[2] = swg->indicesPtr[2];
+    work->indices[3] = swg->indicesPtr[3];
+
+    work->totalPolys = swg->totalPolys * 4;
+
+    for (size_t i = 0; i < work->totalPolys; i += 4, ++work->poly) {
+        gte_ldv3(&work->vertices[i + work->indices[0]], &work->vertices[i + work->indices[1]], &work->vertices[i + work->indices[3]]);
         gte_rtpt();
-        gte_nclip();
-        gte_stopz(&nclip);
+
+        work->poly = (POLY_FT4*)primPtr;
+        setPolyFT4(work->poly);
+        processedPolySides++;
         
-        if (nclip <= 0) {
+        gte_nclip();
+        gte_stopz(&work->nclip);
+        
+        if (work->nclip <= 0) {
             continue;
         }
 
-        setPolyFT4(poly);
-        poly->tpage = swg->polyDataPtr->tpage;
-        poly->clut = swg->polyDataPtr->clut;
-        setRGB0(poly, swg->polyDataPtr->r, swg->polyDataPtr->g, swg->polyDataPtr->b);
-        setUVWH(poly, swg->polyDataPtr->u0, swg->polyDataPtr->v0, swg->polyDataPtr->um, swg->polyDataPtr->vm);
-
-        gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
-        gte_ldv0(&swg->verticesPtr[i + swg->indicesPtr[2]]);
+        gte_stsxy3(&work->poly->x0, &work->poly->x1, &work->poly->x2);
+        gte_ldv0(&work->vertices[i + work->indices[2]]);
         gte_rtps();
 
-        gte_avsz4();
-        gte_stotz(&otz);
-        gte_stsxy(&poly->x3);
-        
-        if ((otz > 0) && (otz < OTSIZE)) {
-            OrderThing(&otz, swg->drPrio);
-            addPrim(cdb->ot[otz], poly);
-        }
+        nonclippedPolySides++;
 
+        work->poly->tpage = work->polyData.tpage;
+        work->poly->clut = work->polyData.clut;
+        setRGB0(work->poly, work->polyData.r, work->polyData.g, work->polyData.b);
+        
+        gte_avsz4();
+
+        setUVWH(work->poly, work->polyData.u0, work->polyData.v0, work->polyData.um, work->polyData.vm);
         primPtr += sizeof(POLY_FT4);
+
+        gte_stotz(&work->otz);
+        gte_stsxy(&work->poly->x3);
+        
+        if ((work->otz > 0) && (work->otz < OTSIZE)) {
+            //OrderThing(&otz, swg->drPrio);
+            addPrim(cdb->ot[work->otz], work->poly);
+        }
     }
 }
 
+typedef struct WorkSWPB {
+    POLY_FT4* poly;
+    long otz;
+    long nclip;
+    PolyData* polyData;
+    SVECTOR* vertices;
+    size_t polyMask;
+    size_t polyIndex;
+} WorkSWPB;
+
 // Polygon box wrapped around collision box
 void AddStaticWorldPolyBox(StaticWorldPolyBox* swpb) {
-    POLY_FT4* poly;
-    long p, otz, flg;
-    int nclip;
-    
-    size_t polyIndex = 0;
+    WorkSWPB* work = (WorkSWPB*)getScratchAddr(0);
+    work->vertices = swpb->vertices;
+    work->polyData = swpb->polyDataPtr;
+    work->polyMask = swpb->polyMask;
+    work->polyIndex = 0;
 
     for (size_t i = 0; i < 6; ++i) {
-        if (!(swpb->polyMask & (1 << i))) {
+        if (!(work->polyMask & (1 << i))) {
             continue;
         }
 
-        poly = (POLY_FT4*)primPtr;
-
-        gte_ldv3(&swpb->vertices[cubeIndices[(4 * i) + 0]], &swpb->vertices[cubeIndices[(4 * i) + 1]], &swpb->vertices[cubeIndices[(4 * i) + 3]]);
+        gte_ldv3(&work->vertices[cubeIndices[(4 * i) + 0]], &work->vertices[cubeIndices[(4 * i) + 1]], &work->vertices[cubeIndices[(4 * i) + 3]]);
         gte_rtpt();
-        gte_nclip();
-        gte_stopz(&nclip);
 
-        if (nclip <= 0) {
-            polyIndex++;
+        work->poly = (POLY_FT4*)primPtr;
+        setPolyFT4(work->poly);
+        processedPolySides++;
+
+        gte_nclip();
+        gte_stopz(&work->nclip);
+
+        if (work->nclip <= 0) {
+            work->polyIndex++;
             continue;
         }
 
-        setPolyFT4(poly);
-        poly->tpage = swpb->polyDataPtr[polyIndex].tpage;
-        poly->clut = swpb->polyDataPtr[polyIndex].clut;
-        setRGB0(poly, swpb->polyDataPtr[polyIndex].r, swpb->polyDataPtr[polyIndex].g, swpb->polyDataPtr[polyIndex].b);
-        setUVWH(poly, swpb->polyDataPtr[polyIndex].u0, swpb->polyDataPtr[polyIndex].v0, swpb->polyDataPtr[polyIndex].um, swpb->polyDataPtr[polyIndex].vm);
-
-        gte_stsxy3(&poly->x0, &poly->x1, &poly->x2);
-        gte_ldv0(&swpb->vertices[cubeIndices[(4 * i) + 2]]);
+        gte_stsxy3(&work->poly->x0, &work->poly->x1, &work->poly->x2);
+        gte_ldv0(&work->vertices[cubeIndices[(4 * i) + 2]]);
         gte_rtps();
 
-        gte_avsz4();
-        gte_stotz(&otz);
-        gte_stsxy(&poly->x3);
+        nonclippedPolySides++;
+
         
-        if ((otz > 0) && (otz < OTSIZE)) {
-            OrderThing(&otz, swpb->drPrio);
-            addPrim(cdb->ot[otz], poly);
-        }
+        work->poly->tpage = work->polyData[work->polyIndex].tpage;
+        work->poly->clut = work->polyData[work->polyIndex].clut;
+        setRGB0(work->poly, work->polyData[work->polyIndex].r, work->polyData[work->polyIndex].g, work->polyData[work->polyIndex].b);
+        setUVWH(work->poly, work->polyData[work->polyIndex].u0, work->polyData[work->polyIndex].v0, work->polyData[work->polyIndex].um, work->polyData[work->polyIndex].vm);
+
+        gte_avsz4();
 
         primPtr += sizeof(POLY_FT4);
-        polyIndex++;
+        work->polyIndex++;
+        
+        gte_stotz(&work->otz);
+        gte_stsxy(&work->poly->x3);
+
+        if ((work->otz > 0) && (work->otz < OTSIZE)) {
+            //OrderThing(&otz, swpb->drPrio);
+            addPrim(cdb->ot[work->otz], work->poly);
+        }
     }
 }
 

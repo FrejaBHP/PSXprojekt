@@ -15,6 +15,7 @@
 #include "geometry.h"
 #include "player.h"
 #include "level.h"
+#include "input.h"
 
 #include "levelOne.h"
 
@@ -32,33 +33,9 @@
 extern u_long __heap_start;
 u_long* heapStart = &__heap_start;
 
-typedef struct Vector2UB {
-    u_char x; // Left = neg, Right = pos
-    u_char y; // Up = neg, Down = pos
-} Vector2UB;
-
-// Holds the pad data stream from the engine (dataBuffer), and divides it into the other, more readable members
-typedef struct GamePad {
-    u_char dataBuffer[34]; u_char status; u_char type;
-    ushort buttons;
-    Vector2UB leftstick; Vector2UB rightstick;
-    short padding;
-} GamePad;
-
-
 MATRIX cameraRotationMatrix = { 0 };
 SVECTOR cameraRotation = { 0 };
 
-// Splits the dataBuffer into the other members for readability and ease of use
-void UpdatePad(GamePad* pad) {
-    pad->status = pad->dataBuffer[0];
-    pad->type = pad->dataBuffer[1];
-    pad->buttons = 0xFFFF - ((pad->dataBuffer[2] << 8) | (pad->dataBuffer[3])); // Stores buffer[2] in the upper 8 bits and [3] in the lower 8 bits. Eases parsing later
-    pad->leftstick.x = pad->dataBuffer[6];
-    pad->leftstick.y = pad->dataBuffer[7];
-    pad->rightstick.x = pad->dataBuffer[4];
-    pad->rightstick.y = pad->dataBuffer[5];
-}
 
 long GetVectorPlaneLength(VECTOR* vec) {
     long cA;
@@ -96,9 +73,19 @@ long GetVectorPlaneLength64(VECTOR* vec) {
 
 // Update poly matrix
 static void UpdatePolyObject(PolyObject* pobj) {
+    VECTOR gridPos = { 
+        pobj->obj.position.vx >> 12, 
+        pobj->obj.position.vy >> 12, 
+        pobj->obj.position.vz >> 12 
+    };
+
+    RotMatrix_gte(&pobj->obj.rotation, &pobj->obj.transform);
+    TransMatrix(&pobj->obj.transform, &gridPos);
+
     // If object can move in any way, apply velocity
+    /*
     if (!pobj->obj.isStatic) {
-        /*
+        
         if (GetVectorPlaneLength64(&pobj->obj.velocity) > (pobj->obj.maxSpeed << 6)) {
             VECTOR appliedVelocity = { 0 };
 
@@ -111,17 +98,11 @@ static void UpdatePolyObject(PolyObject* pobj) {
         else {
             addVector(&pobj->obj.position, &pobj->obj.velocity);
         }
-        */
         
-        VECTOR gridPos = { 
-            pobj->obj.position.vx >> 12, 
-            pobj->obj.position.vy >> 12, 
-            pobj->obj.position.vz >> 12 
-        };
-
-        RotMatrix_gte(&pobj->obj.rotation, &pobj->obj.transform);
-        TransMatrix(&pobj->obj.transform, &gridPos);
+        
+        
     }
+    */
 }
 
 static void CameraTransformMatrix(CameraObject* camera, MATRIX* matrix) {
@@ -224,22 +205,19 @@ int main(void) {
     InitGraphics();
     SpuInit();
 
-    GamePad pad0 = { 0 };
-    GamePad pad1 = { 0 };
-
+    
     CVECTOR col[6];
 
     // Rotation still works with 4096 (ONE) = 360 degrees
     SVECTOR cameraFixedRot = { 0 };
     cameraFixedRot.vx = 256;
-    
-    int PadStatus;
-    int TPressed = 0;
-    int AutoRotate = 1;
 
     // Initialises the controllers with the Kernel library function. Max data buffer size is 34B
-    InitPAD(pad0.dataBuffer, 34, pad1.dataBuffer, 34);
-    StartPAD();
+    //InitPAD(pads[0].dataBuffer, 34, pads[0].dataBuffer, 34);
+    //StartPAD();
+
+    //StopControllers();
+    InitControllers();
 
     // Seed rand for same result every time
     srand(0);
@@ -259,14 +237,19 @@ int main(void) {
     cameraRotationMatrix = identity;
     cameraRotationMatrix.t[2] = CAMERADISTANCE;
 
+    SetRCnt(RCntCNT1, 0xFFFF, RCntMdNOINTR);
+
+    long frame_time = 1;
+
     // Wait for VBLANK to allow controller to initialise (otherwise it starts off with pad->buttons being FFFF for the first frame)
     VSync(0);
 
     while (1) {
+        long frame_start = GetRCnt(RCntCNT1);
         // Translate pad data buffer into a readable format
-        UpdatePad(&pad0);
+        UpdatePad(0);
 
-        if (pad0.status == 0) {
+        if (pads[0].status == 0) {
             // Only reason I'm keeping this commented out block is to have a visible shorthand for input names
             /*
             if (AutoRotate == 0) {
@@ -285,7 +268,7 @@ int main(void) {
             }
             */
 
-            if (pad0.buttons & PADRleft) {
+            if (pads[0].buttons & PADRleft) {
                 if (!isSquareHeld) {
                     isSquareHeld = true;
                     SpawnCoin(0);
@@ -295,7 +278,7 @@ int main(void) {
                 isSquareHeld = false;
             }
 
-            if (pad0.buttons & PADRup) {
+            if (pads[0].buttons & PADRup) {
                 if (!isTriangleHeld) {
                     isTriangleHeld = true;
                     SpawnCoin(1);
@@ -305,7 +288,7 @@ int main(void) {
                 isTriangleHeld = false;
             }
 
-            if (pad0.buttons & PADRright) {
+            if (pads[0].buttons & PADRright) {
                 if (!isCircleHeld) {
                     isCircleHeld = true;
                     SpawnCoin(2);
@@ -315,11 +298,20 @@ int main(void) {
                 isCircleHeld = false;
             }
 
-            if (pad0.buttons & PADL1) {
+            if (pads[0].buttons & PADselect) {
+                if (!isSelectHeld) {
+                    isSelectHeld = true;
+                }
+            }
+            else if (isSelectHeld) {
+                isSelectHeld = false;
+            }
+
+            if (pads[0].buttons & PADL1) {
                 player->poly.obj.rotation.vy -= 24;
             }
 
-            if (pad0.buttons & PADR1) {
+            if (pads[0].buttons & PADR1) {
                 player->poly.obj.rotation.vy += 24;
             }
 
@@ -327,23 +319,23 @@ int main(void) {
             VECTOR inputVelocity = { 0 };
 
             // LS Up (Move forward)
-            if (pad0.leftstick.y < ANALOGUE_MINNEG) {
+            if (pads[0].leftstick.y < ANALOGUE_MINNEG) {
                 inputVelocity.vx -= csin(cameraFixedRot.vy) << 2;
 				inputVelocity.vz += ccos(cameraFixedRot.vy) << 2;
             }
             // LS Down (Move backward)
-            else if (pad0.leftstick.y > ANALOGUE_MINPOS) {
+            else if (pads[0].leftstick.y > ANALOGUE_MINPOS) {
                 inputVelocity.vx += csin(cameraFixedRot.vy) << 2;
 				inputVelocity.vz -= ccos(cameraFixedRot.vy) << 2;
             }
 
             // LS Left (Strafe left)
-            if (pad0.leftstick.x < ANALOGUE_MINNEG) {
+            if (pads[0].leftstick.x < ANALOGUE_MINNEG) {
                 inputVelocity.vx -= ccos(cameraFixedRot.vy) << 2;
 				inputVelocity.vz -= csin(cameraFixedRot.vy) << 2;
             }
             // LS Right (Strafe right)
-            else if (pad0.leftstick.x > ANALOGUE_MINPOS) {
+            else if (pads[0].leftstick.x > ANALOGUE_MINPOS) {
                 inputVelocity.vx += ccos(cameraFixedRot.vy) << 2;
 				inputVelocity.vz += csin(cameraFixedRot.vy) << 2;
             }
@@ -363,11 +355,11 @@ int main(void) {
             */
 
             // RS Left
-            if (pad0.rightstick.x < ANALOGUE_MINNEG) {
+            if (pads[0].rightstick.x < ANALOGUE_MINNEG) {
                 player->cameraPtr->rotation.vy -= ONE * 10;
             }
             // RS Right
-            else if (pad0.rightstick.x > ANALOGUE_MINPOS) {
+            else if (pads[0].rightstick.x > ANALOGUE_MINPOS) {
                 player->cameraPtr->rotation.vy += ONE * 10;
             }
         }
@@ -377,7 +369,10 @@ int main(void) {
         
         //FntPrint("Cam: %04d, %04d, %04d\n\n", cameraFixedRot.vx, cameraFixedRot.vy, cameraFixedRot.vz);
         //FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
-        
+
+
+        long physics_time = GetRCnt(RCntCNT1);
+
 
         // Simulates player movement and resolves collision, then moves the player accordingly
         SimulatePlayerMovementCollision();
@@ -391,8 +386,8 @@ int main(void) {
             isPlayerOnFloor = true;
         }
         */
-        else if ((player->poly.obj.position.vy + player->poly.obj.velocity.vy) > 128 * ONE) {
-            player->poly.obj.position.vy = -128 * ONE;
+        else if ((player->poly.obj.position.vy + player->poly.obj.velocity.vy) > 192 * ONE) {
+            player->poly.obj.position.vy = -384 * ONE;
             //isPlayerOnFloor = true;
         }
         else {
@@ -402,7 +397,7 @@ int main(void) {
         if (isPlayerOnFloor) {
             player->poly.obj.velocity.vy = 0;
 
-            if (pad0.buttons & PADRdown) {
+            if (pads[0].buttons & PADRdown) {
                 player->poly.obj.velocity.vy -= 7 * ONE;
             }
         }
@@ -415,10 +410,19 @@ int main(void) {
         }
 
 
+        physics_time = (GetRCnt(RCntCNT1) - physics_time) & 0xFFFF;
+        long physics_cpu = physics_time * 100 / frame_time;
+
+        long polys_time = GetRCnt(RCntCNT1);
+
+
         UpdatePolyObject(&player->poly);
         UpdatePlayerCamera(&cameraFixedRot);
         // Reset perspective matrix
         CameraTransformMatrix(player->cameraPtr, &identity);
+
+        processedPolySides = 0;
+        nonclippedPolySides = 0;
 
         // Add polys to OT
         for (size_t i = 0; i < CurrentLevelData->TiledPolys->count; i++) {
@@ -436,12 +440,23 @@ int main(void) {
         CameraTransformMatrix(player->cameraPtr, &player->poly.obj.transform);
         AddPolyF(&player->poly);
 
+
+        polys_time = (GetRCnt(RCntCNT1) - polys_time) & 0xFFFF;
+        long polys_cpu = polys_time * 100 / frame_time;
+
+
+        FntPrint("Proc. Poly: %d\nNonc. Poly: %d\n\n", processedPolySides, nonclippedPolySides);
+        FntPrint("Physics Time: %03d, CPU: %02d%%\n", physics_time, physics_cpu);
+        FntPrint("Polys Time:   %03d, CPU: %02d%%\n", polys_time, polys_cpu);
+
         //FntPrint("PT: %04d, %04d, %04d\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
         //FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);
 
         //FntPrint("%x\n", heapStart);
         
         DrawFrame();
+
+        frame_time = (GetRCnt(RCntCNT1) - frame_start) & 0xFFFF;
     }
 
     return 0;
