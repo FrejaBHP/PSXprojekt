@@ -424,13 +424,18 @@ int main(void) {
         processedPolySides = 0;
         nonclippedPolySides = 0;
 
+        size_t* count = (size_t*)getScratchAddr(0);
+        *count = CurrentLevelData->TiledPolys->count;
+
         // Add polys to OT
-        for (size_t i = 0; i < CurrentLevelData->TiledPolys->count; i++) {
+        for (size_t i = 0; i < *count; i++) {
             StaticWorldGeometry* swg = CurrentLevelData->TiledPolys->array[i];
             AddStaticWorldGeometry(swg);
         }
 
-        for (size_t i = 0; i < CurrentLevelData->PolyBoxes->count; i++) {
+        *count = CurrentLevelData->PolyBoxes->count;
+
+        for (size_t i = 0; i < *count; i++) {
             StaticWorldPolyBox* swpb = CurrentLevelData->PolyBoxes->array[i];
             AddStaticWorldPolyBox(swpb);
         }

@@ -648,7 +648,7 @@ typedef struct WorkSWG {
 
 // Tiles polys side by side
 void AddStaticWorldGeometry(const StaticWorldGeometry* swg) {
-    WorkSWG* work = (WorkSWG*)getScratchAddr(0);
+    WorkSWG* work = (WorkSWG*)getScratchAddr(1);
 
     work->polyData = *swg->polyDataPtr;
     work->vertices = swg->verticesPtr;
@@ -712,7 +712,7 @@ typedef struct WorkSWPB {
 
 // Polygon box wrapped around collision box
 void AddStaticWorldPolyBox(StaticWorldPolyBox* swpb) {
-    WorkSWPB* work = (WorkSWPB*)getScratchAddr(0);
+    WorkSWPB* work = (WorkSWPB*)getScratchAddr(1);
     work->vertices = swpb->vertices;
     work->polyData = swpb->polyDataPtr;
     work->polyMask = swpb->polyMask;
