@@ -12,6 +12,7 @@ src/geometry.c \
 src/level.c \
 src/levelOne.c \
 src/input.c \
+src/sound.c \
 textures/woodPanel.tim \
 textures/woodDoor.tim \
 textures/cobble.tim \
@@ -22,6 +23,8 @@ textures/goldCoin.tim \
 textures/grass.tim \
 textures/dirt.tim \
 textures/grassydirt.tim \
+sounds/thats_all.vag \
+sounds/jump.vag \
 
 CPPFLAGS += -Ithird_party/psyq-iwyu/include
 LDFLAGS += -Lthird_party/psyq/lib
@@ -58,13 +61,17 @@ define OBJCOPYME
 $(PREFIX)-objcopy -I binary --set-section-alignment .data=4 --rename-section .data=.rodata,alloc,load,readonly,data,contents -O $(FORMAT) -B mips --redefine-sym _binary_$(subst $(space),_,$(subst .,_,$(subst /,_,$<)))_start=$(subst .tim,,$(notdir $<))_start --redefine-sym _binary_$(subst $(space),_,$(subst .,_,$(subst /,_,$<)))_end=$(subst .tim,,$(notdir $<))_end $< $@
 endef
 
+define VAGTOOBJ
+$(PREFIX)-objcopy -I binary --set-section-alignment .data=4 --rename-section .data=.rodata,alloc,load,readonly,data,contents -O $(FORMAT) -B mips --redefine-sym _binary_$(subst $(space),_,$(subst .,_,$(subst /,_,$<)))_start=$(subst .vag,,$(notdir $<))_start --redefine-sym _binary_$(subst $(space),_,$(subst .,_,$(subst /,_,$<)))_end=$(subst .vag,,$(notdir $<))_end $< $@
+endef
+
 # convert TIM file to bin
 %.o: %.tim
 	$(call OBJCOPYME)
 
 # convert VAG files to bin
-#%.o: %.vag
-#	$(call OBJCOPYME)
+%.o: %.vag
+	$(call VAGTOOBJ)
 	
 # convert HIT to bin
 #%.o: %.HIT

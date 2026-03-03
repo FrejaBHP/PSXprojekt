@@ -16,6 +16,7 @@
 #include "player.h"
 #include "level.h"
 #include "input.h"
+#include "sound.h"
 
 #include "levelOne.h"
 
@@ -203,7 +204,9 @@ int main(void) {
     InitHeap(heapStart, heapBuffer);
 
     InitGraphics();
+
     SpuInit();
+    InitSound();
 
     
     CVECTOR col[6];
@@ -271,7 +274,8 @@ int main(void) {
             if (pads[0].buttons & PADRleft) {
                 if (!isSquareHeld) {
                     isSquareHeld = true;
-                    SpawnCoin(0);
+                    //SpawnCoin(0);
+                    PlaySoundFolks();
                 }
             }
             else if (isSquareHeld) {
@@ -399,6 +403,7 @@ int main(void) {
 
             if (pads[0].buttons & PADRdown) {
                 player->poly.obj.velocity.vy -= 7 * ONE;
+                PlaySoundJump();
             }
         }
         else {

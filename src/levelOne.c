@@ -717,6 +717,9 @@ void CreateWaterArea() {
 }
 
 void CreateAscent() {
+    SVECTOR colStrip1Pos;
+    SVECTOR colStrip3Pos;
+
     SVECTOR ascentPivot = waterLandEndPos;
     short stepHeight = 32;
     // ascentStartPos.vy - (64 * wholeSteps++)
@@ -753,6 +756,16 @@ void CreateAscent() {
         step1X * 80, stepHeight, step1Z * 96
     );
 
+    StaticWorldGeometry* ascStep1CliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx + 160, ascentPivot.vy - 256, ascentPivot.vz - 64, 
+        reverseWindingIndices,
+        0, 128, 80,
+        1, 3, 2,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
+    );
+
 
     // Step 2
     const short step2X = 4;
@@ -760,6 +773,9 @@ void CreateAscent() {
 
     ascentPivot.vy -= stepHeight;
     ascentPivot.vz += step1Z * 96;
+
+    colStrip1Pos = ascentPivot;
+    colStrip1Pos.vx += step2X * 64;
 
     StaticWorldGeometry* ascStep2Floor = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
@@ -785,6 +801,26 @@ void CreateAscent() {
         overworldData.CollisionBoxes,
         ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
         step2X * 64, stepHeight, step2Z * 96
+    );
+
+    StaticWorldGeometry* ascStep2CliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx + 160, ascentPivot.vy - 272, ascentPivot.vz, 
+        reverseWindingIndices,
+        96, 80, 0,
+        1, 4, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
+    );
+
+    StaticWorldGeometry* ascStep2LeftCliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx + 256, ascentPivot.vy - 272, ascentPivot.vz, 
+        reverseWindingIndices,
+        0, 80, 96,
+        1, 4, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
     );
 
 
@@ -822,6 +858,16 @@ void CreateAscent() {
         step3X * 64, stepHeight, step3Z * 64
     );
 
+    StaticWorldGeometry* ascStep3liffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx + 192, ascentPivot.vy - 224, ascentPivot.vz, 
+        reverseWindingIndices,
+        64, 96, 0,
+        1, 3, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
+    );
+
 
     // Step 4
     const short step4X = 4;
@@ -854,6 +900,16 @@ void CreateAscent() {
         overworldData.CollisionBoxes,
         ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
         step4X * 64, stepHeight, step4Z * 64
+    );
+
+    StaticWorldGeometry* ascStep4CliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - 160, ascentPivot.vz, 
+        reverseWindingIndices,
+        128, 128, 0,
+        2, 2, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
     );
 
 
@@ -891,6 +947,26 @@ void CreateAscent() {
         step5X * 64, stepHeight, step5Z * 64
     );
 
+    StaticWorldGeometry* ascStep5CliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - 144, ascentPivot.vz, 
+        reverseWindingIndices,
+        96, 112, 0,
+        1, 2, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
+    );
+
+    StaticWorldGeometry* ascStep5RightCliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - 144, ascentPivot.vz, 
+        windingIndices,
+        0, 112, 128,
+        1, 2, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
+    );
+
 
     // Step 6
     const short step6X = 3;
@@ -899,6 +975,8 @@ void CreateAscent() {
     ascentPivot.vx += 96;
     ascentPivot.vy -= stepHeight;
     ascentPivot.vz -= step6Z * 64;
+
+    colStrip3Pos = ascentPivot;
 
     StaticWorldGeometry* ascStep6Floor = CreateStaticWorldGeometry(
         overworldData.TiledPolys,
@@ -924,6 +1002,16 @@ void CreateAscent() {
         overworldData.CollisionBoxes,
         ascentPivot.vx, ascentPivot.vy, ascentPivot.vz, 
         step6X * 72, stepHeight, step6Z * 64
+    );
+
+    StaticWorldGeometry* ascStep6RightCliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - 128, ascentPivot.vz, 
+        windingIndices,
+        0, 96, 128,
+        1, 2, 2,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
     );
 
 
@@ -1010,6 +1098,64 @@ void CreateAscent() {
         step8X * 64, stepHeight, step8Z * 64
     );
 
+    StaticWorldGeometry* ascStep8RightCliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx + 64, ascentPivot.vy - 80, ascentPivot.vz + 192, 
+        windingIndices,
+        0, 80, 64,
+        1, 2, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
+    );
+
+    StaticWorldGeometry* ascStep8CliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - 88, ascentPivot.vz + 192, 
+        windingIndices,
+        64, 72, 0,
+        1, 2, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
+    );
+
+    StaticWorldGeometry* ascStep8LeftCliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        ascentPivot.vx, ascentPivot.vy - 96, ascentPivot.vz + 192, 
+        reverseWindingIndices,
+        0, 64, 64,
+        1, 2, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
+    );
+
+
+    const short strip1X = (step2X - (step3X - 1)) + step4X;
+
+    // Extra collision
+    CollisionBox* ascMountainStrip1Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        colStrip1Pos.vx, colStrip1Pos.vy, colStrip1Pos.vz - 32, 
+        strip1X * 64, 512, 128
+    );
+
+    CollisionBox* ascMountainStrip2Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        waterLandEndPos.vx + 64, bridgeStepEndPos.vy, bridgeStepEndPos.vz + 256, 
+        (strip1X + 1) * 64, 512, 160
+    );
+
+    CollisionBox* ascMountainStrip3Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        colStrip3Pos.vx - 192, colStrip3Pos.vy + 192, colStrip3Pos.vz,
+        192, 512, 256
+    );
+
+    CollisionBox* ascMountainStrip4Collision = CreateCollisionBox(
+        overworldData.CollisionBoxes,
+        colStrip3Pos.vx - 64, colStrip3Pos.vy + 192, colStrip3Pos.vz - 64,
+        64, 512, 64
+    );
+
     ascentEndPos = ascentPivot;
 }
 
@@ -1052,6 +1198,26 @@ void CreatePlateau() {
         &grassydirt_tim, &grassydirt_UVR
     );
 
+    StaticWorldGeometry* plStartCliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        plateauPivot.vx, plateauPivot.vy, plateauPivot.vz + (plStart1Z * 64), 
+        windingIndices,
+        128, 128, 0,
+        1, 1, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
+    );
+
+    StaticWorldGeometry* plStartLeftCliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        plateauPivot.vx, plateauPivot.vy, plateauPivot.vz + (plStart1Z * 64), 
+        reverseWindingIndices,
+        0, 128, 128,
+        1, 1, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
+    );
+
     plateauPivot.vx -= plStart2X * 64;
 
     StaticWorldGeometry* plStart2Floor = CreateStaticWorldGeometry(
@@ -1078,8 +1244,18 @@ void CreatePlateau() {
 
     CollisionBox* plStartFloorCollision = CreateCollisionBox(
         overworldData.CollisionBoxes,
-        plateauPivot.vx, plateauPivot.vy + 32, plateauPivot.vz, 
-        plStartCombX * 64, 32, plStart3Z * 64
+        plateauPivot.vx, plateauPivot.vy + 512, plateauPivot.vz, 
+        plStartCombX * 64, 512, plStart3Z * 64
+    );
+
+    StaticWorldGeometry* plStart23CliffWall = CreateStaticWorldGeometryUVRect(
+        overworldData.TiledPolys,
+        plateauPivot.vx, plateauPivot.vy, plateauPivot.vz + (plStart3Z * 64), 
+        windingIndices,
+        80, 128, 0,
+        4, 1, 1,
+        DRP_Neutral,
+        &dlv_stonebrick_tim, &dlv_stonebrick_UVR
     );
 
     plateauPivot.vx += 128;
