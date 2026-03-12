@@ -1,7 +1,7 @@
 #include "sound.h"
 
 #define SWAP_ENDIAN32(x) (((x)>>24) | (((x)>>8) & 0xFF00) | (((x)<<8) & 0x00FF0000) | ((x)<<24))
-#define SPU_MALLOC_MAX 3
+#define SPU_MALLOC_MAX 5
 
 typedef struct VAGheader{               // All the values in this header must be big endian
         char id[4];                     // VAGp         4 bytes -> 1 char * 4
@@ -17,6 +17,8 @@ typedef struct VAGheader{               // All the values in this header must be
 const VAGhdr* ThatsAllFolks = (VAGhdr*)thats_all_start;
 const VAGhdr* Jump = (VAGhdr*)jump_start;
 
+VAGhdr* Cultist;
+
 u_long vag_spu_address;                  // address allocated in memory for first sound file
 // DEBUG : these allow printing values for debugging
 u_long spu_start_address;                
@@ -27,6 +29,8 @@ char spuMallocRec[SPU_MALLOC_RECSIZ * (SPU_MALLOC_MAX + 1)];
 
 SpuCommonAttr commonAttr;
 SpuVoiceAttr voiceAttr;
+
+long cultistLoaded = 0;
 
 void SetupVoiceAttributes(u_long pitch, long channel, u_long soundAddr);
 
@@ -48,12 +52,29 @@ void PlaySoundJump() {
     SpuSetKey(SpuOn, SPU_1CH);
 }
 
+void PlaySoundCultist() {
+    if (cultistLoaded) {
+        SpuSetKey(SpuOn, SPU_2CH);
+    }
+}
+
 void InitSound() {
     SpuInitMalloc(SPU_MALLOC_MAX, spuMallocRec);
 
-    commonAttr.mask = (SPU_COMMON_MVOLL | SPU_COMMON_MVOLR);
+    commonAttr.mask = (
+        SPU_COMMON_MVOLL | 
+        SPU_COMMON_MVOLR |
+        SPU_COMMON_CDVOLL |
+        SPU_COMMON_CDVOLR |
+        SPU_COMMON_CDMIX
+    );
+
     commonAttr.mvol.left = 0x3fff;
     commonAttr.mvol.right = 0x3fff;
+    commonAttr.cd.volume.left = 0x3fff;
+    commonAttr.cd.volume.right = 0x3fff;
+    commonAttr.cd.mix = SPU_ON;
+    
     SpuSetCommonAttr(&commonAttr);
     SpuSetIRQ(SPU_OFF);
 
@@ -110,4 +131,17 @@ void SetupVoiceAttributes(u_long pitch, long channel, u_long soundAddr) {
 
     // Seems to copy the values from the struct, rather than referring back to it, so can be used to set and forget, if special settings aren't needed?
     SpuSetVoiceAttr(&voiceAttr);
+}
+
+void LoadCultist(u_long* address) {
+    Cultist = (VAGhdr*)address;
+
+    u_long pitch = (SWAP_ENDIAN32(Cultist->samplingFrequency) << 12) / 44100L;
+    vag_spu_address = SpuMalloc(SWAP_ENDIAN32(Cultist->dataSize));
+    spu_start_address = SpuSetTransferStartAddr(vag_spu_address);
+    get_start_addr = SpuGetTransferStartAddr();
+    transSize = SendVAGtoRAM(SWAP_ENDIAN32(Cultist->dataSize), (u_char*)address);
+
+    SetupVoiceAttributes(pitch, SPU_2CH, vag_spu_address);
+    cultistLoaded = 1;
 }

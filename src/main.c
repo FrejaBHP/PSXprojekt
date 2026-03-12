@@ -17,6 +17,7 @@
 #include "level.h"
 #include "input.h"
 #include "sound.h"
+#include "cd.h"
 
 #include "levelOne.h"
 
@@ -99,9 +100,6 @@ static void UpdatePolyObject(PolyObject* pobj) {
         else {
             addVector(&pobj->obj.position, &pobj->obj.velocity);
         }
-        
-        
-        
     }
     */
 }
@@ -205,9 +203,13 @@ int main(void) {
 
     InitGraphics();
 
+    CdInit();
+
     SpuInit();
     InitSound();
 
+    LoadSoundFromCD();
+    CDPrepareMusic();
     
     CVECTOR col[6];
 
@@ -285,7 +287,8 @@ int main(void) {
             if (pads[0].buttons & PADRup) {
                 if (!isTriangleHeld) {
                     isTriangleHeld = true;
-                    SpawnCoin(1);
+                    //SpawnCoin(1);
+                    PlaySoundCultist();
                 }
             }
             else if (isTriangleHeld) {
@@ -295,7 +298,8 @@ int main(void) {
             if (pads[0].buttons & PADRright) {
                 if (!isCircleHeld) {
                     isCircleHeld = true;
-                    SpawnCoin(2);
+                    //SpawnCoin(2);
+                    CDIncrementTrack();
                 }
             }
             else if (isCircleHeld) {
@@ -317,6 +321,26 @@ int main(void) {
 
             if (pads[0].buttons & PADR1) {
                 player->poly.obj.rotation.vy += 24;
+            }
+
+            if (pads[0].buttons & PADL2) {
+                if (!isL2Held) {
+                    isL2Held = true;
+                    CDPlayTrack(trackToPlay);
+                }
+            }
+            else if (isL2Held) {
+                isL2Held = false;
+            }
+
+            if (pads[0].buttons & PADR2) {
+                if (!isR2Held) {
+                    isR2Held = true;
+                    CDTogglePause();
+                }
+            }
+            else if (isR2Held) {
+                isR2Held = false;
             }
 
             // Clean this up later, preferably by writing a separate file for input handling
@@ -455,9 +479,18 @@ int main(void) {
         long polys_cpu = polys_time * 100 / frame_time;
 
 
+        /*
         FntPrint("Proc. Poly: %d\nNonc. Poly: %d\n\n", processedPolySides, nonclippedPolySides);
         FntPrint("Physics Time: %03d, CPU: %02d%%\n", physics_time, physics_cpu);
-        FntPrint("Polys Time:   %03d, CPU: %02d%%\n", polys_time, polys_cpu);
+        FntPrint("Polys Time:   %03d, CPU: %02d%%\n\n", polys_time, polys_cpu);
+
+        FntPrint("NumTOC: %d, TrackToPlay: %d\n", numTOC, trackToPlay);
+        FntPrint("Loc1: %02x:%02x, S: %x, T: %x\n", location[1].minute, location[1].second, location[1].sector, location[1].track);
+        FntPrint("Loc2: %02x:%02x, S: %x, T: %x\n", location[2].minute, location[2].second, location[2].sector, location[2].track);
+        FntPrint("Loc3: %02x:%02x, S: %x, T: %x\n", location[3].minute, location[3].second, location[3].sector, location[3].track);
+        FntPrint("LocP: %02x:%02x, S: %x, T: %x\n", pauseLocation.minute, pauseLocation.second, pauseLocation.sector, pauseLocation.track);
+        FntPrint("LocR: %02x:%02x, S: %x, T: %x\n", relpauseLocation.minute, relpauseLocation.second, relpauseLocation.sector, relpauseLocation.track);
+        */
 
         //FntPrint("PT: %04d, %04d, %04d\n", player->poly.obj.transform.t[0], player->poly.obj.transform.t[1], player->poly.obj.transform.t[2]);
         //FntPrint("PV: %06d, %06d, %06d\n", player->poly.obj.velocity.vx, player->poly.obj.velocity.vy, player->poly.obj.velocity.vz);

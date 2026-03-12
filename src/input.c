@@ -295,6 +295,8 @@ bool isCrossHeld = false;
 bool isSquareHeld = false;
 bool isTriangleHeld = false;
 bool isCircleHeld = false;
+bool isL2Held = false;
+bool isR2Held = false;
 
 void HandleAnalogue(GamePad* pad);
 

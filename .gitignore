@@ -6,6 +6,10 @@ PSX.Dev-README.md
 *.dep
 *.o
 *.a
+*.zip
+LICENSEE.DAT
 /.vscode
 /third_party
 /textures
+/music
+psxtest.bin

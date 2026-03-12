@@ -42,6 +42,8 @@ extern bool isCrossHeld;
 extern bool isSquareHeld;
 extern bool isTriangleHeld;
 extern bool isCircleHeld;
+extern bool isL2Held;
+extern bool isR2Held;
 
 void InitControllers();
 void StopControllers();

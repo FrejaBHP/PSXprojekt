@@ -1,3 +1,5 @@
+# mkpsxiso -y ./isoconfig.xml
+
 TARGET = PSXtest
 TYPE = ps-exe
 
@@ -13,6 +15,7 @@ src/level.c \
 src/levelOne.c \
 src/input.c \
 src/sound.c \
+src/cd.c \
 textures/woodPanel.tim \
 textures/woodDoor.tim \
 textures/cobble.tim \

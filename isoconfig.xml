@@ -1,0 +1,21 @@
+<iso_project image_name="psxtest.bin" cue_sheet="psxtest.cue" no_xa="0">
+	<track type="data">
+		<identifiers
+			system		="PLAYSTATION"
+			application	="PLAYSTATION"
+			publisher	="Me"
+		/>
+
+		<license file="LICENSEE.DAT"/>
+
+		<directory_tree>
+			<file name="system.cnf" type="data" source="system.cnf"/>
+			<file name="SCES_313.37"   type="data" source="PSXtest.ps-exe"/>
+			<file name="cult_spot" type="data" source="cult_spot.vag"/>
+			<dummy sectors="1024"/>
+		</directory_tree>
+	</track>
+
+	<track type="audio" source="music/JinKazama.mp3"/>
+	<track type="audio" source="music/Hwoarang.mp3"/>
+</iso_project>
